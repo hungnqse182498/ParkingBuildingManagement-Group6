@@ -1,26 +1,38 @@
 import { useNavigate } from 'react-router-dom'
-import { Settings, Shield, Users } from 'lucide-react'
+import {
+  AlertTriangle,
+  BarChart3,
+  Building2,
+  Car,
+  DollarSign,
+  Layers,
+  ParkingSquare,
+} from 'lucide-react'
 import ProtectedRoute from '../../components/ProtectedRoute'
-import { ADMIN_NAV } from '../../config/adminNav'
+import { MANAGER_NAV } from '../../config/managerNav'
 
 const hubIcons: Record<string, React.ReactNode> = {
-  users: <Users size={32} />,
-  permissions: <Shield size={32} />,
-  system: <Settings size={32} />,
+  building: <Building2 size={32} />,
+  vehicles: <Car size={32} />,
+  floors: <Layers size={32} />,
+  slots: <ParkingSquare size={32} />,
+  pricing: <DollarSign size={32} />,
+  reports: <BarChart3 size={32} />,
+  advanced: <AlertTriangle size={32} />,
 }
 
-export default function AdminDashboard() {
+export default function ManagerDashboard() {
   const navigate = useNavigate()
 
   return (
-    <ProtectedRoute allowedRoles={['admin']}>
+    <ProtectedRoute allowedRoles={['manager']}>
       <div className="staff-dashboard-home">
         <header className="dashboard-header">
-          <h1>Quản trị hệ thống</h1>
-          <p>Quản lý tài khoản, phân quyền và cấu hình hệ thống.</p>
+          <h1>Quản lý bãi gửi xe</h1>
+          <p>Cấu hình tòa nhà, slot, bảng giá và theo dõi vận hành.</p>
         </header>
         <div className="dashboard-menu-grid">
-          {ADMIN_NAV.map((item) => (
+          {MANAGER_NAV.map((item) => (
             <button
               key={item.id}
               type="button"
