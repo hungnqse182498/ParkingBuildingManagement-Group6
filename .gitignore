@@ -1,0 +1,74 @@
+# ==========================================
+# 1. FRONTEND (React) - Giả định folder tên là FE
+# ==========================================
+
+# Thư mục thư viện cài đặt
+FE/node_modules/
+FE/jspm_packages/
+
+# Thư mục build đầu ra
+FE/build/
+FE/dist/
+FE/out/
+
+# Log lỗi của npm/yarn
+FE/npm-debug.log*
+FE/yarn-debug.log*
+FE/yarn-error.log*
+FE/pnpm-debug.log*
+
+# File cấu hình môi trường cục bộ
+FE/.env.local
+FE/.env.development.local
+FE/.env.test.local
+FE/.env.production.local
+
+
+# ==========================================
+# 2. BACKEND (.NET) - Giả định folder tên là BE
+# ==========================================
+
+# Thư mục build đầu ra của .NET
+BE/bin/
+BE/obj/
+
+# File cấu hình môi trường và bí mật (Secrets)
+BE/appsettings.Development.json
+BE/appsettings.Local.json
+BE/.secrets.json
+
+# Thư mục công cụ và cache của .NET
+BE/.vs/
+BE/.vscode/
+BE/*.user
+BE/*.userosscache
+BE/*.suo
+BE/.ionide/
+
+# Thư mục lưu trữ gói NuGet
+BE/packages/
+BE/project.lock.json
+BE/project.fragment.lock.json
+
+# Khác liên quan đến Rider / JetBrains nếu dùng để code .NET
+BE/.idea/
+
+# Báo cáo kiểm thử và Coverage
+BE/TestResults/
+BE/*.CodeAnalysisLog
+BE/*.lastcodeanalysissucceeded
+
+
+# ==========================================
+# 3. HỆ ĐIỀU HÀNH & HỆ THỐNG (Dùng chung)
+# ==========================================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
