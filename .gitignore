@@ -1,0 +1,43 @@
+# ==========================================
+# 2. BACKEND (.NET) - folder BackEnd
+# ==========================================
+
+# Build output của .NET
+BackEnd/**/bin/
+BackEnd/**/obj/
+
+# Visual Studio cache
+BackEnd/.vs/
+
+# User-specific files
+BackEnd/**/*.user
+BackEnd/**/*.rsuser
+BackEnd/**/*.suo
+BackEnd/**/*.userosscache
+BackEnd/**/*.sln.docstates
+
+# Secrets / local config
+BackEnd/**/appsettings.Development.json
+BackEnd/**/appsettings.Local.json
+BackEnd/**/appsettings.*.local.json
+BackEnd/**/.env
+BackEnd/**/.secrets.json
+
+# NuGet / generated files
+BackEnd/**/packages/
+BackEnd/**/project.lock.json
+BackEnd/**/project.fragment.lock.json
+BackEnd/**/artifacts/
+
+# Test results / coverage
+BackEnd/**/TestResults/
+BackEnd/**/coverage/
+BackEnd/**/*.coverage
+BackEnd/**/*.coveragexml
+BackEnd/**/*.trx
+
+# Rider / JetBrains
+BackEnd/.idea/
+
+# Ionide
+BackEnd/.ionide/
