@@ -8,10 +8,11 @@ import {
   Layers,
   ParkingSquare,
 } from 'lucide-react'
+import type { ReactNode } from 'react'
 import ProtectedRoute from '../../components/ProtectedRoute'
 import { MANAGER_NAV } from '../../config/managerNav'
 
-const hubIcons: Record<string, React.ReactNode> = {
+const hubIcons: Record<string, ReactNode> = {
   building: <Building2 size={32} />,
   vehicles: <Car size={32} />,
   floors: <Layers size={32} />,
