@@ -25,10 +25,7 @@ namespace DAL.UnitOfWorks
             ParkingSlotRepo = new ParkingSlotRepository(_context);
             ParkingCardRepo = new ParkingCardRepository(_context);
             MonthlySubscriptionRepo = new MonthlySubscriptionRepository(_context);
-            PricingPolicyRepo = new PricingPolicyRepository(_context);
-            ReservationRepo = new ReservationRepository(_context);
             ParkingSessionRepo = new ParkingSessionRepository(_context);
-            PaymentRepo = new PaymentRepository(_context);
             IncidentReportRepo = new IncidentReportRepository(_context);
         }
 
@@ -41,10 +38,7 @@ namespace DAL.UnitOfWorks
         public IParkingSlotRepository ParkingSlotRepo { get; private set; }
         public IParkingCardRepository ParkingCardRepo { get; private set; }
         public IMonthlySubscriptionRepository MonthlySubscriptionRepo { get; private set; }
-        public IPricingPolicyRepository PricingPolicyRepo { get; private set; }
-        public IReservationRepository ReservationRepo { get; private set; }
         public IParkingSessionRepository ParkingSessionRepo { get; private set; }
-        public IPaymentRepository PaymentRepo { get; private set; }
         public IIncidentReportRepository IncidentReportRepo { get; private set; }
 
         public void Dispose()

@@ -17,10 +17,7 @@ namespace DAL.UnitOfWorks
         IParkingSlotRepository ParkingSlotRepo { get; }
         IParkingCardRepository ParkingCardRepo { get; }
         IMonthlySubscriptionRepository MonthlySubscriptionRepo { get; }
-        IPricingPolicyRepository PricingPolicyRepo { get; }
-        IReservationRepository ReservationRepo { get; }
         IParkingSessionRepository ParkingSessionRepo { get; }
-        IPaymentRepository PaymentRepo { get; }
         IIncidentReportRepository IncidentReportRepo { get; }
         Task<int> SaveAsync();  
         Task<bool> SaveChangeAsync();

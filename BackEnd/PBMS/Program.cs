@@ -46,10 +46,7 @@ builder.Services.AddScoped<IGateRepository, GateRepository>();
 builder.Services.AddScoped<IParkingSlotRepository, ParkingSlotRepository>();
 builder.Services.AddScoped<IParkingCardRepository, ParkingCardRepository>();
 builder.Services.AddScoped<IMonthlySubscriptionRepository, MonthlySubscriptionRepository>();
-builder.Services.AddScoped<IPricingPolicyRepository, PricingPolicyRepository>();
-builder.Services.AddScoped<IReservationRepository, ReservationRepository>();
 builder.Services.AddScoped<IParkingSessionRepository, ParkingSessionRepository>();
-builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
 builder.Services.AddScoped<IIncidentReportRepository, IncidentReportRepository>();
 
 // Đăng ký Services
@@ -61,10 +58,7 @@ builder.Services.AddScoped<IGateService, GateService>();
 builder.Services.AddScoped<IParkingSlotService, ParkingSlotService>();
 builder.Services.AddScoped<IParkingCardService, ParkingCardService>();
 builder.Services.AddScoped<IMonthlySubscriptionService, MonthlySubscriptionService>();
-builder.Services.AddScoped<IPricingPolicyService, PricingPolicyService>();
-builder.Services.AddScoped<IReservationService, ReservationService>();
 builder.Services.AddScoped<IParkingSessionService, ParkingSessionService>();
-builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IIncidentReportService, IncidentReportService>();
 builder.Services.AddScoped<IParkingOperationService, ParkingOperationService>();
 

@@ -4,15 +4,16 @@ using Common.DTOs.ParkingOperation;
 using DAL.Models;
 using DAL.UnitOfWorks;
 using Microsoft.EntityFrameworkCore;
+using System.Globalization;
+using System.Text;
 
 namespace BLL.Implements
 {
     public class ParkingOperationService : IParkingOperationService
     {
         private readonly IUnitOfWork _unitOfWork;
-        private static readonly string[] GuestFloorKeywords = { "Vãng lai", "Vang lai" };
-        private static readonly string[] ResidentFloorKeywords = { "Tháng", "Thang", "Cư dân", "Cu dan" };
-        private static readonly string[] ReservationFloorKeywords = { "Đặt trước", "Dat truoc" };
+        private static readonly string[] GuestFloorKeywords = { "vang lai" };
+        private static readonly string[] ResidentFloorKeywords = { "thang", "cu dan" };
 
         public ParkingOperationService(IUnitOfWork unitOfWork)
         {
@@ -21,7 +22,7 @@ namespace BLL.Implements
 
         public async Task<ResponseDTO> GuestCheckInAsync(GuestCheckInDTO dto)
         {
-            if (dto == null) return new ResponseDTO("Dữ liệu check-in khách vãng lai không hợp lệ", 400, false);
+            if (dto == null) return new ResponseDTO("Du lieu check-in khach vang lai khong hop le", 400, false);
 
             var validation = await ValidateCheckInBaseAsync(dto.LicensePlate, dto.VehicleTypeId, dto.GateId, dto.CardId, dto.CardCode, true);
             if (validation.Error != null) return validation.Error;
@@ -30,9 +31,8 @@ namespace BLL.Implements
             if (activeValidation != null) return activeValidation;
 
             var slot = await FindAvailableSlotAsync(dto.VehicleTypeId, GuestFloorKeywords);
-            if (slot == null) return new ResponseDTO("Không còn chỗ trống cho khách vãng lai", 409, false);
+            if (slot == null) return new ResponseDTO("Khong con cho trong cho khach vang lai", 409, false);
 
-            var now = DateTime.Now;
             var session = new ParkingSession
             {
                 SessionId = Guid.NewGuid(),
@@ -40,7 +40,7 @@ namespace BLL.Implements
                 LicensePlateIn = validation.LicensePlate!,
                 EntryImageUrl = NormalizeOptional(dto.EntryImageUrl),
                 VehicleTypeId = dto.VehicleTypeId,
-                EntryTime = now,
+                EntryTime = DateTime.Now,
                 EntryGateId = dto.GateId,
                 AssignedSlotId = slot.SlotId,
                 ActualSlotId = slot.SlotId,
@@ -55,27 +55,12 @@ namespace BLL.Implements
             await _unitOfWork.ParkingCardRepo.UpdateAsync(validation.Card);
             await _unitOfWork.SaveChangeAsync();
 
-            var result = await GetSessionDTOAsync(session.SessionId);
-            return new ResponseDTO("Check-in khách vãng lai thành công", 201, true, result);
-        }
-
-        public async Task<ResponseDTO> GuestCheckOutPreviewAsync(GuestCheckOutPreviewDTO dto)
-        {
-            if (dto == null) return new ResponseDTO("Dữ liệu xem trước checkout không hợp lệ", 400, false);
-
-            var sessionResult = await FindActiveSessionAsync(dto.SessionId, dto.LicensePlate, dto.CardId, dto.CardCode, true);
-            if (sessionResult.Error != null) return sessionResult.Error;
-
-            var feeResult = await CalculateFeeAsync(sessionResult.Session!, DateTime.Now);
-            if (feeResult.Error != null) return feeResult.Error;
-
-            return new ResponseDTO("Tính phí gửi xe thành công", 200, true, feeResult.Preview);
+            return new ResponseDTO("Check-in khach vang lai thanh cong", 201, true, await GetSessionDTOAsync(session.SessionId));
         }
 
         public async Task<ResponseDTO> GuestCheckOutAsync(GuestCheckOutDTO dto)
         {
-            if (dto == null) return new ResponseDTO("Dữ liệu checkout khách vãng lai không hợp lệ", 400, false);
-            if (string.IsNullOrWhiteSpace(dto.PaymentMethod)) return new ResponseDTO("Vui lòng nhập phương thức thanh toán", 400, false);
+            if (dto == null) return new ResponseDTO("Du lieu checkout khach vang lai khong hop le", 400, false);
 
             var exitGateValidation = await ValidateGateTypeAsync(dto.GateId, "Exit");
             if (exitGateValidation != null) return exitGateValidation;
@@ -87,54 +72,21 @@ namespace BLL.Implements
             var plateValidation = await ValidatePlateOutAsync(session, dto.LicensePlateOut);
             if (plateValidation != null) return plateValidation;
 
-            var exitTime = DateTime.Now;
-            var feeResult = await CalculateFeeAsync(session, exitTime);
-            if (feeResult.Error != null) return feeResult.Error;
-
-            var payment = new Payment
-            {
-                PaymentId = Guid.NewGuid(),
-                SessionId = session.SessionId,
-                Amount = feeResult.Preview!.Amount,
-                PaymentMethod = dto.PaymentMethod.Trim(),
-                PaymentTime = exitTime,
-                PaymentStatus = "Success",
-                TransactionReference = NormalizeOptional(dto.TransactionReference)
-            };
-
-            await CloseSessionAsync(session, dto.GateId, dto.LicensePlateOut, dto.ExitImageUrl, exitTime);
-            await _unitOfWork.PaymentRepo.AddAsync(payment);
+            await CloseSessionAsync(session, dto.GateId, dto.LicensePlateOut, dto.ExitImageUrl, DateTime.Now);
             await _unitOfWork.SaveChangeAsync();
 
-            var result = new
-            {
-                Session = await GetSessionDTOAsync(session.SessionId),
-                Payment = new
-                {
-                    payment.PaymentId,
-                    payment.SessionId,
-                    payment.Amount,
-                    payment.PaymentMethod,
-                    payment.PaymentTime,
-                    payment.PaymentStatus,
-                    payment.TransactionReference
-                },
-                Fee = feeResult.Preview
-            };
-
-            return new ResponseDTO("Checkout khách vãng lai thành công", 200, true, result);
+            return new ResponseDTO("Checkout khach vang lai thanh cong", 200, true, await GetSessionDTOAsync(session.SessionId));
         }
 
         public async Task<ResponseDTO> ResidentCheckInAsync(ResidentCheckInDTO dto)
         {
-            if (dto == null) return new ResponseDTO("Dữ liệu check-in cư dân không hợp lệ", 400, false);
+            if (dto == null) return new ResponseDTO("Du lieu check-in cu dan khong hop le", 400, false);
 
             var validation = await ValidateCheckInBaseAsync(dto.LicensePlate, dto.VehicleTypeId, dto.GateId, dto.CardId, dto.CardCode, false);
             if (validation.Error != null) return validation.Error;
 
             var now = DateTime.Now;
             var subscription = await _unitOfWork.MonthlySubscriptionRepo.GetAll()
-                .Include(s => s.User)
                 .FirstOrDefaultAsync(s =>
                     s.LicensePlate.ToLower() == validation.LicensePlate!.ToLower()
                     && s.VehicleTypeId == dto.VehicleTypeId
@@ -142,13 +94,13 @@ namespace BLL.Implements
                     && s.StartDate <= now
                     && s.EndDate >= now);
 
-            if (subscription == null) return new ResponseDTO("Không tìm thấy gói tháng hợp lệ cho biển số này", 403, false);
+            if (subscription == null) return new ResponseDTO("Khong tim thay goi thang hop le cho bien so nay", 403, false);
 
             var activeValidation = await ValidateNoActiveSessionAsync(validation.LicensePlate!, validation.Card);
             if (activeValidation != null) return activeValidation;
 
             var slot = await FindAvailableSlotAsync(dto.VehicleTypeId, ResidentFloorKeywords);
-            if (slot == null) return new ResponseDTO("Không còn chỗ trống cho cư dân", 409, false);
+            if (slot == null) return new ResponseDTO("Khong con cho trong cho cu dan", 409, false);
 
             var session = new ParkingSession
             {
@@ -173,13 +125,12 @@ namespace BLL.Implements
             if (validation.Card != null) await _unitOfWork.ParkingCardRepo.UpdateAsync(validation.Card);
             await _unitOfWork.SaveChangeAsync();
 
-            var result = await GetSessionDTOAsync(session.SessionId);
-            return new ResponseDTO("Check-in cư dân thành công", 201, true, result);
+            return new ResponseDTO("Check-in cu dan thanh cong", 201, true, await GetSessionDTOAsync(session.SessionId));
         }
 
         public async Task<ResponseDTO> ResidentCheckOutAsync(ResidentCheckOutDTO dto)
         {
-            if (dto == null) return new ResponseDTO("Dữ liệu checkout cư dân không hợp lệ", 400, false);
+            if (dto == null) return new ResponseDTO("Du lieu checkout cu dan khong hop le", 400, false);
 
             var exitGateValidation = await ValidateGateTypeAsync(dto.GateId, "Exit");
             if (exitGateValidation != null) return exitGateValidation;
@@ -194,7 +145,7 @@ namespace BLL.Implements
                     && s.VehicleTypeId == session.VehicleTypeId
                     && s.Status == "Active");
 
-            if (subscription == null) return new ResponseDTO("Phiên gửi xe này không thuộc gói tháng hợp lệ", 403, false);
+            if (subscription == null) return new ResponseDTO("Phien gui xe nay khong thuoc goi thang hop le", 403, false);
 
             var plateValidation = await ValidatePlateOutAsync(session, dto.LicensePlateOut);
             if (plateValidation != null) return plateValidation;
@@ -202,82 +153,7 @@ namespace BLL.Implements
             await CloseSessionAsync(session, dto.GateId, dto.LicensePlateOut, dto.ExitImageUrl, DateTime.Now);
             await _unitOfWork.SaveChangeAsync();
 
-            var result = await GetSessionDTOAsync(session.SessionId);
-            return new ResponseDTO("Checkout cư dân thành công", 200, true, result);
-        }
-
-        public async Task<ResponseDTO> ReservationCheckInAsync(ReservationCheckInDTO dto)
-        {
-            if (dto == null) return new ResponseDTO("Dữ liệu check-in đặt trước không hợp lệ", 400, false);
-            if (dto.ReservationId == Guid.Empty) return new ResponseDTO("Vui lòng nhập ReservationId", 400, false);
-            if (string.IsNullOrWhiteSpace(dto.LicensePlate)) return new ResponseDTO("Vui lòng nhập biển số", 400, false);
-
-            var entryGateValidation = await ValidateGateTypeAsync(dto.GateId, "Entry");
-            if (entryGateValidation != null) return entryGateValidation;
-
-            var reservation = await _unitOfWork.ReservationRepo.GetAll()
-                .Include(r => r.User)
-                .Include(r => r.VehicleType)
-                .Include(r => r.AssignedSlot)
-                    .ThenInclude(s => s.Floor)
-                .FirstOrDefaultAsync(r => r.ReservationId == dto.ReservationId);
-
-            if (reservation == null) return new ResponseDTO("Không tìm thấy đặt chỗ", 404, false);
-            if (!string.Equals(reservation.Status, "Confirmed", StringComparison.OrdinalIgnoreCase))
-            {
-                return new ResponseDTO("Đặt chỗ phải ở trạng thái Confirmed để check-in", 400, false);
-            }
-
-            var now = DateTime.Now;
-            if (now < reservation.ExpectedEntryTime.AddMinutes(-30) || now > reservation.ExpectedExitTime)
-            {
-                return new ResponseDTO("Chưa đến hoặc đã quá thời gian check-in đặt trước", 400, false);
-            }
-
-            if (reservation.AssignedSlot.Status != "Reserved")
-            {
-                return new ResponseDTO("Vị trí đặt trước không còn ở trạng thái Reserved", 409, false);
-            }
-
-            if (!FloorMatches(reservation.AssignedSlot.Floor?.FloorName, ReservationFloorKeywords))
-            {
-                return new ResponseDTO("Vị trí đặt trước phải thuộc tầng ô tô đặt trước", 400, false);
-            }
-
-            var cardResult = await ResolveCardAsync(dto.CardId, dto.CardCode, false, true);
-            if (cardResult.Error != null) return cardResult.Error;
-
-            var licensePlate = NormalizePlate(dto.LicensePlate);
-            var activeValidation = await ValidateNoActiveSessionAsync(licensePlate, cardResult.Card);
-            if (activeValidation != null) return activeValidation;
-
-            var session = new ParkingSession
-            {
-                SessionId = Guid.NewGuid(),
-                CardId = cardResult.Card?.CardId,
-                DriverUserId = reservation.UserId,
-                LicensePlateIn = licensePlate,
-                EntryImageUrl = NormalizeOptional(dto.EntryImageUrl),
-                VehicleTypeId = reservation.VehicleTypeId,
-                EntryTime = now,
-                EntryGateId = dto.GateId,
-                AssignedSlotId = reservation.AssignedSlotId,
-                ActualSlotId = reservation.AssignedSlotId,
-                Status = "Active"
-            };
-
-            reservation.Status = "CheckedIn";
-            reservation.AssignedSlot.Status = "Occupied";
-            if (cardResult.Card != null) cardResult.Card.Status = "InUse";
-
-            await _unitOfWork.ParkingSessionRepo.AddAsync(session);
-            await _unitOfWork.ReservationRepo.UpdateAsync(reservation);
-            await _unitOfWork.ParkingSlotRepo.UpdateAsync(reservation.AssignedSlot);
-            if (cardResult.Card != null) await _unitOfWork.ParkingCardRepo.UpdateAsync(cardResult.Card);
-            await _unitOfWork.SaveChangeAsync();
-
-            var result = await GetSessionDTOAsync(session.SessionId);
-            return new ResponseDTO("Check-in xe đặt trước thành công", 201, true, result);
+            return new ResponseDTO("Checkout cu dan thanh cong", 200, true, await GetSessionDTOAsync(session.SessionId));
         }
 
         public async Task<ResponseDTO> GetAvailabilityAsync(Guid? vehicleTypeId, string? floorKeyword)
@@ -290,8 +166,9 @@ namespace BLL.Implements
 
             if (!string.IsNullOrWhiteSpace(floorKeyword))
             {
+                var normalizedKeyword = RemoveDiacritics(floorKeyword).ToLower();
                 slots = slots
-                    .Where(s => s.Floor != null && s.Floor.FloorName.Contains(floorKeyword.Trim(), StringComparison.OrdinalIgnoreCase))
+                    .Where(s => s.Floor != null && RemoveDiacritics(s.Floor.FloorName).ToLower().Contains(normalizedKeyword))
                     .ToList();
             }
 
@@ -311,7 +188,7 @@ namespace BLL.Implements
                 .OrderBy(a => a.FloorName)
                 .ToList();
 
-            return new ResponseDTO("Lấy tình trạng chỗ trống thành công", 200, true, result);
+            return new ResponseDTO("Lay tinh trang cho trong thanh cong", 200, true, result);
         }
 
         private async Task<(string? LicensePlate, ParkingCard? Card, ResponseDTO? Error)> ValidateCheckInBaseAsync(
@@ -322,11 +199,11 @@ namespace BLL.Implements
             string? cardCode,
             bool requireCard)
         {
-            if (string.IsNullOrWhiteSpace(licensePlate)) return (null, null, new ResponseDTO("Vui lòng nhập biển số", 400, false));
-            if (vehicleTypeId == Guid.Empty) return (null, null, new ResponseDTO("Vui lòng chọn loại phương tiện", 400, false));
+            if (string.IsNullOrWhiteSpace(licensePlate)) return (null, null, new ResponseDTO("Vui long nhap bien so", 400, false));
+            if (vehicleTypeId == Guid.Empty) return (null, null, new ResponseDTO("Vui long chon loai phuong tien", 400, false));
 
             var vehicleTypeExists = await _unitOfWork.VehicleTypeRepo.AnyAsync(v => v.VehicleTypeId == vehicleTypeId);
-            if (!vehicleTypeExists) return (null, null, new ResponseDTO("Loại phương tiện không tồn tại", 400, false));
+            if (!vehicleTypeExists) return (null, null, new ResponseDTO("Loai phuong tien khong ton tai", 400, false));
 
             var gateValidation = await ValidateGateTypeAsync(gateId, "Entry");
             if (gateValidation != null) return (null, null, gateValidation);
@@ -339,13 +216,13 @@ namespace BLL.Implements
 
         private async Task<ResponseDTO?> ValidateGateTypeAsync(Guid gateId, string expectedGateType)
         {
-            if (gateId == Guid.Empty) return new ResponseDTO("Vui lòng chọn cổng", 400, false);
+            if (gateId == Guid.Empty) return new ResponseDTO("Vui long chon cong", 400, false);
 
             var gate = await _unitOfWork.GateRepo.GetByIdAsync(gateId);
-            if (gate == null) return new ResponseDTO("Cổng không tồn tại", 400, false);
+            if (gate == null) return new ResponseDTO("Cong khong ton tai", 400, false);
             if (!string.Equals(gate.GateType, expectedGateType, StringComparison.OrdinalIgnoreCase))
             {
-                return new ResponseDTO($"Cổng phải là loại {expectedGateType}", 400, false);
+                return new ResponseDTO($"Cong phai la loai {expectedGateType}", 400, false);
             }
 
             return null;
@@ -355,7 +232,7 @@ namespace BLL.Implements
         {
             if (!cardId.HasValue && string.IsNullOrWhiteSpace(cardCode))
             {
-                return requireCard ? (null, new ResponseDTO("Vui lòng nhập thẻ xe", 400, false)) : (null, null);
+                return requireCard ? (null, new ResponseDTO("Vui long nhap the xe", 400, false)) : (null, null);
             }
 
             ParkingCard? card = null;
@@ -367,18 +244,18 @@ namespace BLL.Implements
             if (!string.IsNullOrWhiteSpace(cardCode))
             {
                 var cardByCode = await _unitOfWork.ParkingCardRepo.FindByCodeAsync(cardCode);
-                if (cardByCode == null) return (null, new ResponseDTO("Không tìm thấy mã thẻ xe", 404, false));
+                if (cardByCode == null) return (null, new ResponseDTO("Khong tim thay ma the xe", 404, false));
                 if (card != null && card.CardId != cardByCode.CardId)
                 {
-                    return (null, new ResponseDTO("CardId và CardCode không khớp", 400, false));
+                    return (null, new ResponseDTO("CardId va CardCode khong khop", 400, false));
                 }
                 card = cardByCode;
             }
 
-            if (card == null) return (null, new ResponseDTO("Không tìm thấy thẻ xe", 404, false));
+            if (card == null) return (null, new ResponseDTO("Khong tim thay the xe", 404, false));
             if (requireActive && card.Status != "Active")
             {
-                return (null, new ResponseDTO("Thẻ xe không ở trạng thái Active", 409, false));
+                return (null, new ResponseDTO("The xe khong o trang thai Active", 409, false));
             }
 
             return (card, null);
@@ -387,12 +264,12 @@ namespace BLL.Implements
         private async Task<ResponseDTO?> ValidateNoActiveSessionAsync(string licensePlate, ParkingCard? card)
         {
             var hasActivePlate = await _unitOfWork.ParkingSessionRepo.AnyAsync(s => s.Status == "Active" && s.LicensePlateIn.ToLower() == licensePlate.ToLower());
-            if (hasActivePlate) return new ResponseDTO("Biển số đang có phiên gửi xe active", 409, false);
+            if (hasActivePlate) return new ResponseDTO("Bien so dang co phien gui xe active", 409, false);
 
             if (card != null)
             {
                 var hasActiveCard = await _unitOfWork.ParkingSessionRepo.AnyAsync(s => s.Status == "Active" && s.CardId == card.CardId);
-                if (hasActiveCard) return new ResponseDTO("Thẻ xe đang có phiên gửi xe active", 409, false);
+                if (hasActiveCard) return new ResponseDTO("The xe dang co phien gui xe active", 409, false);
             }
 
             return null;
@@ -413,7 +290,7 @@ namespace BLL.Implements
         {
             if (!sessionId.HasValue && string.IsNullOrWhiteSpace(licensePlate) && !cardId.HasValue && string.IsNullOrWhiteSpace(cardCode))
             {
-                return (null, new ResponseDTO("Vui lòng nhập SessionId hoặc biển số/thẻ xe", 400, false));
+                return (null, new ResponseDTO("Vui long nhap SessionId hoac bien so/the xe", 400, false));
             }
 
             var query = QuerySessionsWithIncludes().Where(s => s.Status == "Active");
@@ -429,21 +306,19 @@ namespace BLL.Implements
                 query = query.Where(s => s.LicensePlateIn.ToLower() == plate.ToLower());
             }
 
-            ParkingCard? card = null;
             if (cardId.HasValue || !string.IsNullOrWhiteSpace(cardCode))
             {
                 var cardResult = await ResolveCardAsync(cardId, cardCode, false, false);
                 if (cardResult.Error != null) return (null, cardResult.Error);
-                card = cardResult.Card;
-                if (card != null) query = query.Where(s => s.CardId == card.CardId);
+                if (cardResult.Card != null) query = query.Where(s => s.CardId == cardResult.Card.CardId);
             }
             else if (requireCardWhenNoSessionId && !sessionId.HasValue)
             {
-                return (null, new ResponseDTO("Vui lòng nhập thẻ xe khi không có SessionId", 400, false));
+                return (null, new ResponseDTO("Vui long nhap the xe khi khong co SessionId", 400, false));
             }
 
             var session = await query.FirstOrDefaultAsync();
-            if (session == null) return (null, new ResponseDTO("Không tìm thấy phiên gửi xe active", 404, false));
+            if (session == null) return (null, new ResponseDTO("Khong tim thay phien gui xe active", 404, false));
 
             return (session, null);
         }
@@ -455,44 +330,9 @@ namespace BLL.Implements
             var normalizedPlateOut = NormalizePlate(licensePlateOut);
             if (normalizedPlateOut == session.LicensePlateIn) return null;
 
-            await CreateIncidentIfPossibleAsync(session, "PlateMismatch", $"Biển số ra {normalizedPlateOut} không khớp biển số vào {session.LicensePlateIn}.");
+            await CreateIncidentIfPossibleAsync(session, "PlateMismatch", $"Bien so ra {normalizedPlateOut} khong khop bien so vao {session.LicensePlateIn}.");
             await _unitOfWork.SaveChangeAsync();
-            return new ResponseDTO("Biển số ra không khớp biển số vào", 409, false);
-        }
-
-        private async Task<(ParkingFeePreviewDTO? Preview, ResponseDTO? Error)> CalculateFeeAsync(ParkingSession session, DateTime exitTime)
-        {
-            var policy = await _unitOfWork.PricingPolicyRepo.GetAll()
-                .Where(p => p.VehicleTypeId == session.VehicleTypeId && p.Status == "Active" && p.EffectiveDate <= exitTime)
-                .OrderByDescending(p => p.EffectiveDate)
-                .FirstOrDefaultAsync();
-
-            if (policy == null) return (null, new ResponseDTO("Chưa cấu hình chính sách giá active cho loại phương tiện này", 400, false));
-
-            var totalHours = Math.Max(0, (exitTime - session.EntryTime).TotalHours);
-            var billedHours = Math.Max(1, (int)Math.Ceiling(totalHours));
-            var amount = policy.BasePrice;
-
-            if (billedHours > policy.BaseHours)
-            {
-                amount += (billedHours - policy.BaseHours) * policy.ExtraHourPrice;
-            }
-
-            if ((policy.NightSurcharge ?? 0) > 0 && HasNightOverlap(session.EntryTime, exitTime))
-            {
-                amount += policy.NightSurcharge ?? 0;
-            }
-
-            return (new ParkingFeePreviewDTO
-            {
-                SessionId = session.SessionId,
-                LicensePlate = session.LicensePlateIn,
-                EntryTime = session.EntryTime,
-                ExitTime = exitTime,
-                TotalHours = Math.Round(totalHours, 2),
-                Amount = amount,
-                PricingPolicyId = policy.PolicyId
-            }, null);
+            return new ResponseDTO("Bien so ra khong khop bien so vao", 409, false);
         }
 
         private async Task CloseSessionAsync(ParkingSession session, Guid exitGateId, string? licensePlateOut, string? exitImageUrl, DateTime exitTime)
@@ -583,22 +423,26 @@ namespace BLL.Implements
 
         private static bool FloorMatches(string? floorName, string[] keywords)
         {
-            return !string.IsNullOrWhiteSpace(floorName)
-                && keywords.Any(k => floorName.Contains(k, StringComparison.OrdinalIgnoreCase));
+            if (string.IsNullOrWhiteSpace(floorName)) return false;
+
+            var normalizedFloorName = RemoveDiacritics(floorName).ToLower();
+            return keywords.Any(normalizedFloorName.Contains);
         }
 
-        private static bool HasNightOverlap(DateTime entryTime, DateTime exitTime)
+        private static string RemoveDiacritics(string value)
         {
-            if (exitTime <= entryTime) return false;
+            var normalized = value.Normalize(NormalizationForm.FormD);
+            var builder = new StringBuilder(normalized.Length);
 
-            var cursor = entryTime;
-            while (cursor <= exitTime)
+            foreach (var c in normalized)
             {
-                if (cursor.Hour >= 22 || cursor.Hour < 6) return true;
-                cursor = cursor.AddHours(1);
+                if (CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark)
+                {
+                    builder.Append(c);
+                }
             }
 
-            return exitTime.Hour >= 22 || exitTime.Hour < 6;
+            return builder.ToString().Normalize(NormalizationForm.FormC);
         }
     }
 }
