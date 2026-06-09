@@ -1,0 +1,22 @@
+# ==========================================
+# BACKEND (.NET) - CHỈ CHẶN FILE RÁC, UP HẾT CONFIG
+# ==========================================
+
+# FILE RÁC SINH RA KHI BUILD (Bắt buộc phải chặn vì máy khác không dùng được)
+**/bin/
+**/obj/
+
+# File cấu hình rác của IDE tự đẻ ra
+**/*.user
+**/*.rduser
+**/*.suo
+**/*.userosscache
+**/*.sln.docstates
+
+# File rác của bộ quản lý thư viện & Test
+**/packages/
+**/project.lock.json
+**/artifacts/
+**/TestResults/
+**/coverage/
+**/*.trx
