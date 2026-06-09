@@ -1,6 +1,7 @@
 using BLL.Interfaces;
 using Common.DTOs;
 using Common.DTOs.Floor;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Threading.Tasks;
@@ -8,6 +9,7 @@ using System.Threading.Tasks;
 namespace PBMS.Controllers
 {
     [ApiController]
+    [Authorize]
     [Route("api/[controller]")]
     public class FloorController : ControllerBase
     {
@@ -33,6 +35,7 @@ namespace PBMS.Controllers
         }
 
         [HttpPost]
+        [Authorize(Roles = "Manager")]
         public async Task<IActionResult> Create([FromBody] CreateFloorDTO dto)
         {
             var res = await _floorService.CreateAsync(dto);
@@ -40,6 +43,7 @@ namespace PBMS.Controllers
         }
 
         [HttpPut]
+        [Authorize(Roles = "Manager")]
         public async Task<IActionResult> Update([FromBody] UpdateFloorDTO dto)
         {
             var res = await _floorService.UpdateAsync(dto);
@@ -47,6 +51,7 @@ namespace PBMS.Controllers
         }
 
         [HttpDelete("{id:guid}")]
+        [Authorize(Roles = "Manager")]
         public async Task<IActionResult> Delete(Guid id)
         {
             var res = await _floorService.DeleteAsync(id);

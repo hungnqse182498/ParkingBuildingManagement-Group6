@@ -9,5 +9,23 @@ namespace Common.DTOs.Floor
         public Guid? DedicatedVehicleTypeId { get; set; }
         public string? DedicatedVehicleTypeName { get; set; }
         public int TotalCapacity { get; set; }
+        public bool IsResident { get; set; }
+    }
+
+    public class CreateFloorDTO
+    {
+        public string FloorName { get; set; }
+        public Guid? DedicatedVehicleTypeId { get; set; }
+        public int TotalCapacity { get; set; }
+        public bool IsResident { get; set; }
+    }
+
+    public class UpdateFloorDTO
+    {
+        public Guid FloorId { get; set; }
+        public string FloorName { get; set; }
+        public Guid? DedicatedVehicleTypeId { get; set; }
+        public int TotalCapacity { get; set; }
+        public bool IsResident { get; set; }
     }
 }
