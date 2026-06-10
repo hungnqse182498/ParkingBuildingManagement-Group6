@@ -1,4 +1,4 @@
-import { Settings, Shield, Users } from 'lucide-react'
+import { Settings, Users } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 export interface NavItem {
