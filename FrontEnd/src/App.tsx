@@ -26,8 +26,6 @@ import AdminDashboard from './pages/admin/Dashboard'
 
 import AdminUsers from './pages/admin/Users'
 
-import AdminPermissions from './pages/admin/Permissions'
-
 import AdminSystemConfig from './pages/admin/SystemConfig'
 
 import ManagerDashboard from './pages/manager/Dashboard'
@@ -56,7 +54,10 @@ import UserBookingSuccess from './pages/user/BookingSuccess'
 
 import UserProfile from './pages/user/Profile'
 
+import UserSubscribeMonthly from './pages/user/SubscribeMonthly'
 import UserRegister from './pages/user/Register'
+
+import LegalHub from './pages/user/LegalHub'
 
 
 
@@ -88,7 +89,11 @@ export default function App() {
 
               <Route path="dat-cho/thanh-cong" element={<UserBookingSuccess />} />
 
+              <Route path="dang-ky-thang" element={<UserSubscribeMonthly />} />
+
               <Route path="lich-su" element={<UserBookingHistory />} />
+
+              <Route path="legal" element={<LegalHub />} />
 
               <Route path="tai-khoan" element={<UserProfile />} />
 
@@ -105,8 +110,6 @@ export default function App() {
               <Route path="admin/dashboard" element={<AdminDashboard />} />
 
               <Route path="admin/users" element={<AdminUsers />} />
-
-              <Route path="admin/permissions" element={<AdminPermissions />} />
 
               <Route path="admin/system-config" element={<AdminSystemConfig />} />
 

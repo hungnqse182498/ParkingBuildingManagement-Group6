@@ -1,12 +1,21 @@
+import { useEffect, useState } from 'react'
 import ManagerPageShell from '../../components/ManagerPageShell'
+import { apiClient } from '../../config/api'
 
-const CASES = [
-  { id: 'EX-001', type: 'Mất vé', plate: '51F-99999', time: '25/05 14:20', status: 'pending' },
-  { id: 'EX-002', type: 'Sai biển số', plate: '30A-11111', time: '25/05 11:05', status: 'resolved' },
-  { id: 'EX-003', type: 'Quá giờ đặt trước', plate: '51B-22222', time: '24/05 19:40', status: 'pending' },
-  { id: 'EX-004', type: 'Gửi sai khu vực', plate: '59C-33333', time: '24/05 08:15', status: 'pending' },
-  { id: 'EX-005', type: 'Chưa thanh toán', plate: '51D-44444', time: '23/05 22:10', status: 'resolved' },
-]
+interface IncidentReport {
+  incidentReportId: number
+  incidentCode?: string
+  incidentType: string
+  licensePlate: string
+  reportedAt: string
+  status: string
+}
+
+interface ApiResponse<T> {
+  isSuccess: boolean
+  result: T
+  message?: string
+}
 
 const typeLabels: Record<string, string> = {
   'Mất vé': 'badge-cancelled',
@@ -16,7 +25,60 @@ const typeLabels: Record<string, string> = {
   'Chưa thanh toán': 'badge-cancelled',
 }
 
+function formatTime(iso: string) {
+  try {
+    const d = new Date(iso)
+    return d.toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' })
+  } catch {
+    return iso
+  }
+}
+
 export default function ManagerAdvanced() {
+  const [cases, setCases] = useState<IncidentReport[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const fetchCases = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await apiClient.get<ApiResponse<IncidentReport[]>>('/IncidentReport')
+      if (res.isSuccess) {
+        setCases(res.result)
+      } else {
+        setError(res.message ?? 'Không thể tải danh sách sự vụ.')
+      }
+    } catch (e) {
+      console.error(e)
+      setError('Lỗi kết nối. Vui lòng thử lại.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchCases()
+  }, [])
+
+  const handleProcess = () => {
+    alert('Feature not supported yet')
+  }
+
+  const handleDelete = async (id: number, code: string) => {
+    if (!window.confirm(`Xóa sự vụ "${code}"?`)) return
+    try {
+      await apiClient.delete<ApiResponse<unknown>>(`/IncidentReport/${id}`)
+      await fetchCases()
+    } catch (e) {
+      console.error(e)
+      alert('Xóa thất bại. Vui lòng thử lại.')
+    }
+  }
+
+  const pendingCount = cases.filter((c) => c.status === 'pending' || c.status?.toLowerCase() === 'pending').length
+  const resolvedCount = cases.filter((c) => c.status === 'resolved' || c.status?.toLowerCase() === 'resolved').length
+
   return (
     <ManagerPageShell activeItem="advanced">
       <div className="staff-content-wrapper">
@@ -28,18 +90,24 @@ export default function ManagerAdvanced() {
 
           <div className="slot-summary-grid">
             <article className="slot-summary-card slot-summary--reserved">
-              <strong>3</strong>
+              <strong>{loading ? '—' : pendingCount}</strong>
               <span>Đang xử lý</span>
             </article>
             <article className="slot-summary-card slot-summary--empty">
-              <strong>2</strong>
-              <span>Đã xử lý hôm nay</span>
+              <strong>{loading ? '—' : resolvedCount}</strong>
+              <span>Đã xử lý</span>
             </article>
             <article className="slot-summary-card slot-summary--maintenance">
-              <strong>1</strong>
-              <span>Mất vé (tháng)</span>
+              <strong>{loading ? '—' : cases.length}</strong>
+              <span>Tổng sự vụ</span>
             </article>
           </div>
+
+          {error && (
+            <div className="card-panel" style={{ color: 'var(--danger, #ef4444)', marginBottom: '1rem' }}>
+              {error}
+            </div>
+          )}
 
           <div className="card-panel table-wrap">
             <table className="ui-table">
@@ -54,28 +122,60 @@ export default function ManagerAdvanced() {
                 </tr>
               </thead>
               <tbody>
-                {CASES.map((c) => (
-                  <tr key={c.id}>
-                    <td>{c.id}</td>
-                    <td>
-                      <span className={`badge ${typeLabels[c.type] ?? ''}`}>{c.type}</span>
-                    </td>
-                    <td>{c.plate}</td>
-                    <td>{c.time}</td>
-                    <td>
-                      {c.status === 'pending' ? (
-                        <span className="badge badge-cancelled">Chờ xử lý</span>
-                      ) : (
-                        <span className="badge badge-paid">Đã xử lý</span>
-                      )}
-                    </td>
-                    <td>
-                      <button type="button" className="btn btn-primary btn-sm">
-                        Xử lý
-                      </button>
+                {loading && (
+                  <tr>
+                    <td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
+                      Đang tải dữ liệu...
                     </td>
                   </tr>
-                ))}
+                )}
+                {!loading && cases.length === 0 && (
+                  <tr>
+                    <td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
+                      Không có sự vụ nào.
+                    </td>
+                  </tr>
+                )}
+                {cases.map((c) => {
+                  const code = c.incidentCode ?? `IR-${c.incidentReportId}`
+                  const isPending =
+                    c.status?.toLowerCase() === 'pending' || c.status === 'pending'
+                  return (
+                    <tr key={c.incidentReportId}>
+                      <td>{code}</td>
+                      <td>
+                        <span className={`badge ${typeLabels[c.incidentType] ?? ''}`}>
+                          {c.incidentType}
+                        </span>
+                      </td>
+                      <td>{c.licensePlate}</td>
+                      <td>{formatTime(c.reportedAt)}</td>
+                      <td>
+                        {isPending ? (
+                          <span className="badge badge-cancelled">Chờ xử lý</span>
+                        ) : (
+                          <span className="badge badge-paid">Đã xử lý</span>
+                        )}
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          className="btn btn-primary btn-sm"
+                          onClick={handleProcess}
+                        >
+                          Xử lý
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => handleDelete(c.incidentReportId, code)}
+                        >
+                          Xóa
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>

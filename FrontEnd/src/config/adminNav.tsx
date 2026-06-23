@@ -1,4 +1,4 @@
-import { Settings, Shield, Users } from 'lucide-react'
+import { Settings, Users } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 export interface NavItem {
@@ -16,13 +16,6 @@ export const ADMIN_NAV: NavItem[] = [
     path: '/admin/users',
     icon: <Users size={18} />,
     desc: 'Thêm, sửa, khóa tài khoản người dùng',
-  },
-  {
-    id: 'permissions',
-    label: 'Phân quyền',
-    path: '/admin/permissions',
-    icon: <Shield size={18} />,
-    desc: 'Gán vai trò và quyền truy cập',
   },
   {
     id: 'system',
