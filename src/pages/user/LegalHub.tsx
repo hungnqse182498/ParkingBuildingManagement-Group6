@@ -39,23 +39,28 @@ export default function LegalHub() {
         </div>
       </header>
 
-      {/* Quick navigation */}
-      <nav className="legal-nav card-panel">
-        <strong>Mục lục</strong>
-        <ul>
-          {NAV_ITEMS.map(({ id, label, icon: Icon }) => (
-            <li key={id}>
-              <a href={`#${id}`}>
-                <Icon size={16} strokeWidth={2} aria-hidden />
-                {label}
-              </a>
-            </li>
-          ))}
-        </ul>
-      </nav>
+      <div className="legal-layout">
+        {/* Left column / Sidebar */}
+        <aside className="legal-sidebar-wrap">
+          <nav className="legal-sidebar-nav card-panel">
+            <strong>Mục lục</strong>
+            <ul>
+              {NAV_ITEMS.map(({ id, label, icon: Icon }) => (
+                <li key={id}>
+                  <a href={`#${id}`}>
+                    <Icon size={16} strokeWidth={2} aria-hidden />
+                    <span>{label}</span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        </aside>
 
-      {/* ─── 1. Điều khoản sử dụng ─── */}
-      <article id="terms" className="legal-section card-panel">
+        {/* Right column / Content */}
+        <main className="legal-main-content">
+          {/* ─── 1. Điều khoản sử dụng ─── */}
+          <article id="terms" className="legal-section card-panel">
         <h2>
           <FileText size={22} strokeWidth={2} aria-hidden />
           Điều khoản sử dụng
@@ -186,7 +191,7 @@ export default function LegalHub() {
         <h3>2. Thời gian đặt chỗ</h3>
         <ul>
           <li>Bãi xe hoạt động 24/7, bao gồm ngày lễ và cuối tuần.</li>
-          <li>Đặt chỗ trước tối thiểu 30 phút và tối đa 7 ngày trước thời điểm sử dụng.</li>
+          <li>Đặt chỗ trước tối thiểu 30 phút và tối đa 5 giờ trước thời điểm sử dụng.</li>
           <li>Phải đến đúng giờ đã đặt. Nếu đến trễ quá <strong>30 phút</strong> so với giờ bắt đầu, hệ thống tự động hủy đơn và tính phí hủy muộn 20% giá trị đơn.</li>
         </ul>
 
@@ -271,6 +276,8 @@ export default function LegalHub() {
           <li>Gửi email: <strong>support@easyparking.vn</strong> kèm mã đơn hàng và lý do hủy.</li>
         </ul>
       </article>
+        </main>
+      </div>
     </section>
   );
 }
