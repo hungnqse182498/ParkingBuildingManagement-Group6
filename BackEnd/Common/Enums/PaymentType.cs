@@ -9,6 +9,8 @@ namespace Common.Enums
     public enum PaymentType
     {
         Deposit,
-        CheckoutFee
+        CheckoutFee,
+        SubscriptionFee,
+        SubscriptionRenewal
     }
 }
