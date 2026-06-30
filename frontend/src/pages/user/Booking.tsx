@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { AlertTriangle, Bike, CalendarDays, Car, MapPin } from 'lucide-react'
 import BookingSteps from '../../components/BookingSteps'
 import ParkingMap from '../../components/ParkingMap'
@@ -22,7 +22,10 @@ function CancellationPolicy() {
         <strong>Chính sách hủy đặt chỗ</strong>
         <p>
           Hủy đặt chỗ <strong>không hoàn tiền</strong>. Tiền cọc sẽ không được hoàn lại dưới mọi
-          hình thức.
+          hình thức.{" "}
+          <Link to="/legal#booking-rules" style={{ textDecoration: 'underline', color: 'inherit', fontWeight: 'bold' }}>
+            Tìm hiểu thêm về chính sách của chúng tôi
+          </Link>
         </p>
       </div>
     </div>
@@ -31,7 +34,7 @@ function CancellationPolicy() {
 
 function PriceTable() {
   const { getPolicy } = useBooking()
-  const carPolicy = getPolicy('car')
+  getPolicy('car')
 
   return (
     <div className="booking-price-table">
@@ -39,24 +42,30 @@ function PriceTable() {
       <table>
         <thead>
           <tr>
-            <th>Loại xe</th>
-            <th>Giá ban ngày (6h – 22h)</th>
-            <th>Giá ban đêm (22h – 6h)</th>
+            <th>Hạng mục</th>
+            <th>Giá</th>
           </tr>
         </thead>
         <tbody>
-          <tr>
+          <tr style={{ fontWeight: 'bold', backgroundColor: '#eef6ff' }}>
             <td>
-              <Car size={16} aria-hidden />
-              Ô tô
+              <Car size={16} aria-hidden style={{ marginRight: '8px', verticalAlign: 'middle' }} />
+              Giờ đầu
             </td>
-            <td>{formatCurrency(carPolicy.basePrice)}/giờ</td>
-            <td>{formatCurrency(carPolicy.nightSurcharge)}/giờ</td>
+            <td>30.000 đ</td>
+          </tr>
+          <tr>
+            <td>Ban ngày (6h – 22h)</td>
+            <td>10.000 đ/giờ</td>
+          </tr>
+          <tr>
+            <td>Ban đêm (22h – 6h)</td>
+            <td>20.000 đ/giờ</td>
           </tr>
         </tbody>
       </table>
       <p className="booking-price-note">
-        Tiền cọc cố định 1 giờ: {formatCurrency(carPolicy.basePrice)}. Chỉ áp dụng cho ô tô — xe máy không hỗ trợ đặt trước.
+        Giờ đầu: 30.000 đ — Các giờ tiếp theo: 10.000 đ/giờ (06:00–22:00), 20.000 đ/giờ (22:00–06:00).
       </p>
     </div>
   )
