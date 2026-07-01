@@ -4,6 +4,7 @@ import {
   Building2,
   Car,
   DollarSign,
+  DoorOpen,
   Layers,
   ParkingSquare,
 } from 'lucide-react'
@@ -38,6 +39,13 @@ export const MANAGER_NAV: NavItem[] = [
     path: '/manager/floor-assignment',
     icon: <Layers size={18} />,
     desc: 'Gán tầng/khu cho từng loại xe',
+  },
+  {
+    id: 'gates',
+    label: 'Cổng ra vào',
+    path: '/manager/gates',
+    icon: <DoorOpen size={18} />,
+    desc: 'Quản lý cổng ra vào bãi xe',
   },
   {
     id: 'slots',
