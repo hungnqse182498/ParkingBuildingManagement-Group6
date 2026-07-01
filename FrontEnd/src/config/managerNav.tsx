@@ -6,6 +6,7 @@ import {
   DollarSign,
   DoorOpen,
   Layers,
+  Package,
   ParkingSquare,
 } from 'lucide-react'
 import type { ReactNode } from 'react'
@@ -46,6 +47,13 @@ export const MANAGER_NAV: NavItem[] = [
     path: '/manager/gates',
     icon: <DoorOpen size={18} />,
     desc: 'Quản lý cổng ra vào bãi xe',
+  },
+  {
+    id: 'subscriptions',
+    label: 'Gói thuê bao',
+    path: '/manager/subscriptions',
+    icon: <Package size={18} />,
+    desc: 'Quản lý gói đăng ký tháng',
   },
   {
     id: 'slots',
