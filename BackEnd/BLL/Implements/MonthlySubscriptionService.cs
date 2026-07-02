@@ -32,6 +32,12 @@ namespace BLL.Implements
             if (package == null) return new ResponseDTO("Gói không tồn tại hoặc đã ngừng bán", 404);
 
             var normalizedPlate = string.IsNullOrWhiteSpace(dto.LicensePlate) ? string.Empty : dto.LicensePlate.Trim().ToUpperInvariant();
+            var nowUtc = DateTime.UtcNow;
+            var startDateUtc = NormalizeUtc(dto.StartDateUtc) ?? nowUtc;
+            if (startDateUtc > nowUtc.AddMinutes(5))
+            {
+                startDateUtc = nowUtc;
+            }
 
             var plateExists = await _unitOfWork.MonthlySubscriptionRepo.HasUsablePlateAsync(normalizedPlate);
             if (plateExists) return new ResponseDTO("Biển số này đã có gói đang hiệu lực hoặc đang chờ thanh toán", 400);
@@ -46,8 +52,8 @@ namespace BLL.Implements
                     VehicleTypeId = package.VehicleTypeId,
                     LicensePlate = normalizedPlate,
                     PackageId = package.PackageId,
-                    StartDate = DateTime.Now,
-                    EndDate = DateTime.Now.AddMonths(package.DurationMonths),
+                    StartDate = startDateUtc,
+                    EndDate = startDateUtc.AddMonths(package.DurationMonths),
                     Price = package.Price,
                     Status = MonthlySubscriptionStatus.PendingPayment.ToString()
                 };
@@ -55,12 +61,13 @@ namespace BLL.Implements
                 var payment = new Payment
                 {
                     PaymentId = Guid.NewGuid(),
+                    UserId = userId,
                     SubscriptionId = subscription.SubscriptionId,
                     Amount = package.Price,
                     PaymentMethod = PaymentMethod.PayOS.ToString(),
                     PaymentStatus = PaymentStatus.Pending.ToString(),
                     PaymentType = PaymentType.SubscriptionFee.ToString(),
-                    PaymentTime = DateTime.UtcNow,
+                    PaymentTime = nowUtc,
                     TransactionReference = string.Empty
                 };
 
@@ -103,6 +110,7 @@ namespace BLL.Implements
             if (subscription == null) return new ResponseDTO("Không tìm thấy gói tháng", 404);
             if (userId != Guid.Empty && subscription.UserId != userId) return new ResponseDTO("Bạn không có quyền thanh toán gói này", 403);
             if (subscription.Status == "Active") return new ResponseDTO("Gói đã được kích hoạt", 400);
+            if (subscription.Price <= 0) return new ResponseDTO("Giá gói tháng không hợp lệ", 400);
 
             var payment = await _unitOfWork.PaymentRepo.GetLatestPendingSubscriptionPaymentAsync(subscriptionId);
 
@@ -111,6 +119,7 @@ namespace BLL.Implements
                 payment = new Payment
                     {
                         PaymentId = Guid.NewGuid(),
+                        UserId = subscription.UserId,
                         SubscriptionId = subscription.SubscriptionId,
                         Amount = subscription.Price,
                         PaymentMethod = PaymentMethod.PayOS.ToString(),
@@ -122,6 +131,12 @@ namespace BLL.Implements
                 await _unitOfWork.PaymentRepo.AddAsync(payment);
                 await _unitOfWork.SaveAsync();
             }
+            else
+            {
+                payment.UserId = subscription.UserId;
+                payment.Amount = subscription.Price;
+                payment.PaymentTime = DateTime.UtcNow;
+            }
 
             var paymentUrl = await _payOSService.CreatePaymentLinkAsync(payment);
             string paymentLinkId = "";
@@ -129,6 +144,7 @@ namespace BLL.Implements
             {
                 paymentLinkId = paymentUrl.Substring(paymentUrl.LastIndexOf('/') + 1);
             }
+            await _unitOfWork.PaymentRepo.UpdateAsync(payment);
             await _unitOfWork.SaveAsync();
 
             return new ResponseDTO("Tạo link thanh toán thành công", 200, true, new RegisterMonthlySubscriptionPaymentDTO
@@ -315,6 +331,18 @@ namespace BLL.Implements
                 Price = sub.Price,
                 Status = sub.Status,
                 FixedSlot = sub.FixedSlot?.SlotCode
+            };
+        }
+
+        private static DateTime? NormalizeUtc(DateTime? value)
+        {
+            if (!value.HasValue) return null;
+
+            return value.Value.Kind switch
+            {
+                DateTimeKind.Utc => value.Value,
+                DateTimeKind.Local => value.Value.ToUniversalTime(),
+                _ => DateTime.SpecifyKind(value.Value, DateTimeKind.Utc)
             };
         }
     }

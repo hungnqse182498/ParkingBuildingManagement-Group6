@@ -1,84 +1,153 @@
-import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Bike, Car, MapPin } from 'lucide-react'
-import ParkingMap from '../../components/ParkingMap'
+import { useEffect, useMemo, useState } from 'react'
+import { Bike, CalendarDays, Car, CreditCard } from 'lucide-react'
 import ProtectedRoute from '../../components/ProtectedRoute'
 import { useAuth } from '../../context/AuthContext'
-import { parkingFloors } from '../../data/parkingFloors'
-import type { ParkingFloor, ParkingSpot } from '../../types/parking'
-import { filterCustomerFloors, vehicleTypeLabel } from '../../utils/bookingPricing'
-import { subscriptionApi } from '../../utils/apiServices'
+import { subscriptionApi, type SubscriptionPackageDto } from '../../utils/apiServices'
+import { toUtcIsoString } from '../../utils/dateTime'
 import { formatCurrency } from '../../utils/pricing'
 
-interface PlanOption {
-  months: number
-  label: string
-  carPrice: number
-  bikePrice: number
-  tag?: string
+type VehicleFilter = 'all' | 'car' | 'bike'
+
+const isActivePackage = (pkg: SubscriptionPackageDto) =>
+  pkg.status.toLowerCase() === 'active'
+
+const getVehicleFilter = (pkg: SubscriptionPackageDto): VehicleFilter => {
+  const name = (pkg.vehicleTypeName ?? '').toLowerCase()
+  if (name.includes('car') || name.includes('oto') || name.includes('o to') || name.includes('ô tô')) {
+    return 'car'
+  }
+  if (name.includes('bike') || name.includes('motor') || name.includes('xe may') || name.includes('xe máy')) {
+    return 'bike'
+  }
+  return 'all'
 }
 
-const PLANS: PlanOption[] = [
-  { months: 1, label: '1 Tháng', carPrice: 1200000, bikePrice: 450000, tag: 'Linh hoạt' },
-  { months: 3, label: '3 Tháng', carPrice: 3200000, bikePrice: 1200000, tag: 'Tiết kiệm' },
-  { months: 12, label: '12 Tháng', carPrice: 11500000, bikePrice: 4200000, tag: 'Cao cấp' },
-]
+const getApiErrorMessage = (err: unknown) => {
+  const apiError = err as {
+    response?: { data?: { message?: string } }
+    data?: { message?: string }
+    message?: string
+  }
+
+  const responseMessage = apiError.response?.data?.message || apiError.data?.message
+  if (responseMessage) return responseMessage
+
+  if (!(err instanceof Error)) return null
+  const jsonStart = err.message.indexOf('{')
+  if (jsonStart === -1) return err.message || null
+
+  try {
+    const parsed = JSON.parse(err.message.slice(jsonStart)) as { message?: string }
+    return parsed.message || err.message
+  } catch {
+    return err.message
+  }
+}
 
 function SubscribeContent() {
-  const navigate = useNavigate()
-  const { profile, refreshProfile, upgradeToCustomer } = useAuth()
-  const [vehicle, setVehicle] = useState<'car' | 'bike'>('car')
-  const [selectedPlan, setSelectedPlan] = useState<PlanOption>(PLANS[1])
+  const { profile } = useAuth()
+  const [vehicle, setVehicle] = useState<VehicleFilter>('all')
+  const [packages, setPackages] = useState<SubscriptionPackageDto[]>([])
+  const [selectedPackageId, setSelectedPackageId] = useState('')
   const [licensePlate, setLicensePlate] = useState(profile?.vehiclePlate ?? '')
-  const [selectedSpot, setSelectedSpot] = useState<{ floor: ParkingFloor; spot: ParkingSpot } | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [loadingPackages, setLoadingPackages] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
 
-  const customerFloors = filterCustomerFloors(vehicle, parkingFloors) as ParkingFloor[]
-  const price = vehicle === 'car' ? selectedPlan.carPrice : selectedPlan.bikePrice
+  const activePackages = useMemo(
+    () => packages.filter(isActivePackage),
+    [packages],
+  )
+
+  const visiblePackages = useMemo(
+    () =>
+      activePackages.filter((pkg) => {
+        if (vehicle === 'all') return true
+        const packageVehicle = getVehicleFilter(pkg)
+        return packageVehicle === vehicle || packageVehicle === 'all'
+      }),
+    [activePackages, vehicle],
+  )
+
+  const selectedPackage =
+    visiblePackages.find((pkg) => pkg.packageId === selectedPackageId) ??
+    visiblePackages[0] ??
+    null
 
   useEffect(() => {
     if (profile?.vehiclePlate) setLicensePlate(profile.vehiclePlate)
   }, [profile])
 
-  const handleSpotSelect = (spot: ParkingSpot, floor: ParkingFloor) => {
-    setSelectedSpot({ floor, spot })
-  }
+  useEffect(() => {
+    let ignore = false
+
+    const loadPackages = async () => {
+      setLoadingPackages(true)
+      setError('')
+      try {
+        const res = await subscriptionApi.getPackages()
+        if (ignore) return
+
+        if (res.isSuccess && Array.isArray(res.result)) {
+          setPackages(res.result)
+          setSelectedPackageId(res.result.find(isActivePackage)?.packageId ?? '')
+        } else {
+          setError(res.message || 'Không thể tải danh sách gói thuê bao.')
+        }
+      } catch (err) {
+        console.error(err)
+        if (!ignore) setError(getApiErrorMessage(err) || 'Không thể kết nối đến máy chủ. Vui lòng thử lại.')
+      } finally {
+        if (!ignore) setLoadingPackages(false)
+      }
+    }
+
+    loadPackages()
+    return () => {
+      ignore = true
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!selectedPackage) {
+      setSelectedPackageId('')
+      return
+    }
+    if (selectedPackage.packageId !== selectedPackageId) {
+      setSelectedPackageId(selectedPackage.packageId)
+    }
+  }, [selectedPackage, selectedPackageId])
 
   const handleSubscribe = async () => {
-    if (!licensePlate.trim()) {
-      setError('Vui lòng nhập biển số xe')
+    if (!selectedPackage) {
+      setError('Vui lòng chọn một gói thuê bao đang hoạt động.')
       return
     }
-    if (!selectedSpot) {
-      setError('Vui lòng chọn tầng và chỗ đỗ')
+    if (!licensePlate.trim()) {
+      setError('Vui lòng nhập biển số xe.')
       return
     }
 
-    setLoading(true)
+    setSubmitting(true)
     setError('')
     try {
-      const res = await subscriptionApi.subscribe({
-        vehicleTypeName: vehicleTypeLabel(vehicle),
+      const res = await subscriptionApi.register({
+        packageId: selectedPackage.packageId,
         licensePlate: licensePlate.trim(),
-        months: selectedPlan.months,
-        price,
-        preferredFloorName: selectedSpot.floor.name,
-        preferredSlotLabel: `${selectedSpot.spot.row}${selectedSpot.spot.number}`,
+        startDateUtc: toUtcIsoString(new Date()),
       })
 
-      if (res.isSuccess) {
-        await refreshProfile()
-        upgradeToCustomer()
-        navigate('/dat-cho', { state: { subscribed: true } })
+      if (res.isSuccess && res.result?.paymentUrl) {
+        window.location.assign(res.result.paymentUrl)
         return
       }
-      setError(res.message || 'Đăng ký gói tháng thất bại')
+
+      setError(res.message || 'Đăng ký gói thuê bao thất bại.')
     } catch (err) {
       console.error(err)
-      setError('Lỗi kết nối. Vui lòng thử lại.')
+      setError(getApiErrorMessage(err) || 'Không thể kết nối đến máy chủ. Vui lòng thử lại.')
     } finally {
-      setLoading(false)
+      setSubmitting(false)
     }
   }
 
@@ -86,35 +155,23 @@ function SubscribeContent() {
     <section className="subscribe-page">
       <header className="page-header">
         <div>
-          <h1>Đăng ký gói tháng</h1>
-          <p>Chọn gói, loại xe, tầng và chỗ đỗ cố định. Sau khi đăng ký, tài khoản nâng cấp lên khách hàng (customer).</p>
+          <h1>Đăng ký gói thuê bao tháng</h1>
+          <p>Chọn gói thuê bao phù hợp, nhập biển số xe và tiến hành thanh toán qua cổng PayOS.</p>
         </div>
       </header>
 
       <div className="subscribe-layout">
         <div className="card-panel">
-          <h2>Chọn gói</h2>
-          <div className="subscribe-plans">
-            {PLANS.map((plan) => (
-              <button
-                key={plan.months}
-                type="button"
-                className={`subscribe-plan-btn${selectedPlan.months === plan.months ? ' active' : ''}`}
-                onClick={() => setSelectedPlan(plan)}
-              >
-                <span className="plan-tag">{plan.tag}</span>
-                <strong>{plan.label}</strong>
-                <span>{formatCurrency(vehicle === 'car' ? plan.carPrice : plan.bikePrice)}</span>
-              </button>
-            ))}
-          </div>
-
+          <h2>Thông tin xe</h2>
           <div className="vehicle-toggle subscribe-vehicle-toggle">
+            <button type="button" className={vehicle === 'all' ? 'active' : ''} onClick={() => setVehicle('all')}>
+              Tất cả
+            </button>
             <button type="button" className={vehicle === 'car' ? 'active' : ''} onClick={() => setVehicle('car')}>
-              <Car size={18} /> Ô tô (B2, B3)
+              <Car size={18} /> Ô tô
             </button>
             <button type="button" className={vehicle === 'bike' ? 'active' : ''} onClick={() => setVehicle('bike')}>
-              <Bike size={18} /> Xe máy (B1)
+              <Bike size={18} /> Xe máy
             </button>
           </div>
 
@@ -125,34 +182,57 @@ function SubscribeContent() {
               <input
                 type="text"
                 value={licensePlate}
-                onChange={(e) => setLicensePlate(e.target.value)}
-                placeholder="51A-12345"
+                onChange={(event) => setLicensePlate(event.target.value.toUpperCase())}
+                placeholder="VD: 51A-12345"
               />
             </div>
           </label>
         </div>
 
         <div className="card-panel">
-          <h2>Chọn tầng & chỗ đỗ</h2>
-          <ParkingMap floors={customerFloors} onSelect={handleSpotSelect} />
-          {selectedSpot && (
-            <p className="selected-spot-info">
-              <MapPin size={16} />
-              Đã chọn: {selectedSpot.floor.name} — {selectedSpot.spot.row}{selectedSpot.spot.number}
-            </p>
+          <h2>Chọn gói dịch vụ</h2>
+          {loadingPackages ? (
+            <p className="section-desc">Đang tải danh sách gói...</p>
+          ) : visiblePackages.length === 0 ? (
+            <p className="alert-inline alert-error">Hiện tại không có gói thuê bao nào khả dụng cho loại xe này.</p>
+          ) : (
+            <div className="subscribe-plans">
+              {visiblePackages.map((pkg) => (
+                <button
+                  key={pkg.packageId}
+                  type="button"
+                  className={`subscribe-plan-btn${selectedPackage?.packageId === pkg.packageId ? ' active' : ''}`}
+                  onClick={() => setSelectedPackageId(pkg.packageId)}
+                >
+                  <span className="plan-tag">{pkg.vehicleTypeName || 'Phương tiện'}</span>
+                  <strong>{pkg.packageName}</strong>
+                  <span>{formatCurrency(pkg.price)}</span>
+                  <small>
+                    <CalendarDays size={14} /> Thời hạn: {pkg.durationMonths} tháng
+                  </small>
+                  {pkg.requireFixedSlot && <small>Yêu cầu ô đỗ cố định</small>}
+                </button>
+              ))}
+            </div>
           )}
         </div>
       </div>
 
       <div className="subscribe-footer card-panel">
         <div>
-          <span>Tổng thanh toán</span>
-          <strong>{formatCurrency(price)}</strong>
-          <small>Gói {selectedPlan.label} · {vehicleTypeLabel(vehicle)}</small>
+          <span>Tổng tiền thanh toán</span>
+          <strong>{selectedPackage ? formatCurrency(selectedPackage.price) : formatCurrency(0)}</strong>
+          <small>{selectedPackage ? `Gói đang chọn: ${selectedPackage.packageName}` : 'Chưa chọn gói dịch vụ'}</small>
         </div>
         {error && <p className="alert-inline alert-error">{error}</p>}
-        <button type="button" className="btn btn-primary" disabled={loading} onClick={handleSubscribe}>
-          {loading ? 'Đang xử lý...' : 'Đăng ký & nâng cấp tài khoản'}
+        <button
+          type="button"
+          className="btn btn-primary"
+          disabled={loadingPackages || submitting || !selectedPackage}
+          onClick={handleSubscribe}
+        >
+          <CreditCard size={18} />
+          {submitting ? 'Đang kết nối cổng thanh toán...' : 'Đăng ký & Thanh toán'}
         </button>
       </div>
     </section>
@@ -161,7 +241,7 @@ function SubscribeContent() {
 
 export default function SubscribeMonthly() {
   return (
-    <ProtectedRoute allowedRoles={['user']}>
+    <ProtectedRoute allowedRoles={['user', 'customer']}>
       <SubscribeContent />
     </ProtectedRoute>
   )

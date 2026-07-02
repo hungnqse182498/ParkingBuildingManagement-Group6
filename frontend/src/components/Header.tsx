@@ -90,6 +90,10 @@ export default function Header() {
                     <Car size={16} strokeWidth={2} aria-hidden />
                     Đặt chỗ
                   </NavLink>
+                  <NavLink to="/dang-ky-thang">
+                    <CreditCard size={16} strokeWidth={2} aria-hidden />
+                    Mua gói
+                  </NavLink>
                   <NavLink to="/lich-su">
                     <CalendarDays size={16} strokeWidth={2} aria-hidden />
                     Lịch sử
@@ -101,9 +105,9 @@ export default function Header() {
             <>
               <NavLink to="/dat-cho">
                 <Car size={16} strokeWidth={2} aria-hidden />
-                Tìm chỗ đỗ
+                Đặt chỗ ngay
               </NavLink>
-              <a href="/#subscriptions">Gói đăng ký</a>
+              <a href="/#subscriptions">Đăng ký gói</a>
               <a href="#support">Hỗ trợ</a>
             </>
           )}

@@ -12,7 +12,6 @@ import {
   filterCustomerFloors,
   vehicleTypeLabel,
 } from '../../utils/bookingPricing'
-import { formatCurrency } from '../../utils/pricing'
 
 function CancellationPolicy() {
   return (
@@ -30,33 +29,33 @@ function CancellationPolicy() {
 }
 
 function PriceTable() {
-  const { getPolicy } = useBooking()
-  const carPolicy = getPolicy('car')
-
   return (
     <div className="booking-price-table">
       <h3>Bảng giá giữ xe ô tô</h3>
       <table>
         <thead>
           <tr>
-            <th>Loại xe</th>
-            <th>Giá ban ngày (6h – 22h)</th>
-            <th>Giá ban đêm (22h – 6h)</th>
+            <th>Hạng mục</th>
+            <th>Giá</th>
           </tr>
         </thead>
         <tbody>
+          <tr style={{ fontWeight: 'bold', background: '#eef6ff' }}>
+            <td>Giờ đầu</td>
+            <td>30.000 đ</td>
+          </tr>
           <tr>
-            <td>
-              <Car size={16} aria-hidden />
-              Ô tô
-            </td>
-            <td>{formatCurrency(carPolicy.basePrice)}/giờ</td>
-            <td>{formatCurrency(carPolicy.nightSurcharge)}/giờ</td>
+            <td>Ban ngày (6h – 22h)</td>
+            <td>10.000 đ/giờ</td>
+          </tr>
+          <tr>
+            <td>Ban đêm (22h – 6h)</td>
+            <td>20.000 đ/giờ</td>
           </tr>
         </tbody>
       </table>
       <p className="booking-price-note">
-        Tiền cọc cố định 1 giờ: {formatCurrency(carPolicy.basePrice)}. Chỉ áp dụng cho ô tô — xe máy không hỗ trợ đặt trước.
+        Giờ đầu: 30.000 đ — Các giờ tiếp theo: 10.000 đ/giờ (06:00–22:00), 20.000 đ/giờ (22:00–06:00).
       </p>
     </div>
   )
@@ -96,6 +95,20 @@ function BookingContent() {
       return
     }
 
+    const selectedTime = new Date(startTime).getTime()
+    const nowTime = new Date().getTime()
+    const diffHours = (selectedTime - nowTime) / (1000 * 60 * 60)
+
+    if (diffHours < 0) {
+      alert('Thời gian vào phải lớn hơn thời gian hiện tại')
+      return
+    }
+
+    if (diffHours > 5) {
+      alert('Chỉ được phép đặt trước tối đa 5 tiếng')
+      return
+    }
+
     const policy = getPolicy('car')
     const deposit = policy.basePrice
 
@@ -121,6 +134,13 @@ function BookingContent() {
 
     navigate('/dat-cho/xac-nhan')
   }
+
+  // Calculate min and max time for the input
+  const now = new Date()
+  const tzoffset = now.getTimezoneOffset() * 60000
+  const minTimeStr = new Date(now.getTime() - tzoffset).toISOString().slice(0, 16)
+  const maxTime = new Date(now.getTime() + 5 * 60 * 60 * 1000)
+  const maxTimeStr = new Date(maxTime.getTime() - tzoffset).toISOString().slice(0, 16)
 
   return (
     <div className="home-landing booking-landing">
@@ -152,105 +172,107 @@ function BookingContent() {
                 : 'Đặt trước chỉ dành cho ô tô. Chọn giờ vào bãi và thanh toán tiền cọc 1 giờ.'}
             </p>
 
-           
-              {isCustomer ? (
-                <div className="booking-customer-layout">
-                  <section className="booking-section-card booking-customer-form">
-                    <div className="booking-section-heading">
-                      <span>Thông tin xe</span>
-                      <strong>Chọn loại xe</strong>
-                    </div>
 
-                    <div className="availability-head">
-                      <div className="vehicle-toggle" aria-label="Chọn loại xe">
-                        <button
-                          type="button"
-                          onClick={() => setVehicle('car')}
-                          className={vehicle === 'car' ? 'active' : ''}
-                        >
-                          <Car size={18} strokeWidth={2.2} aria-hidden />
-                          Ô tô (B2, B3)
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setVehicle('bike')}
-                          className={vehicle === 'bike' ? 'active' : ''}
-                        >
-                          <Bike size={18} strokeWidth={2.2} aria-hidden />
-                          Xe máy (B1)
-                        </button>
-                      </div>
-                    </div>
-                  </section>
-
-                  <div className="booking-map-panel">
-                    <ParkingMap floors={customerFloors} />
+            {isCustomer ? (
+              <div className="booking-customer-layout">
+                <section className="booking-section-card booking-customer-form">
+                  <div className="booking-section-heading">
+                    <span>Thông tin xe</span>
+                    <strong>Chọn loại xe</strong>
                   </div>
+
+                  <div className="availability-head">
+                    <div className="vehicle-toggle" aria-label="Chọn loại xe">
+                      <button
+                        type="button"
+                        onClick={() => setVehicle('car')}
+                        className={vehicle === 'car' ? 'active' : ''}
+                      >
+                        <Car size={18} strokeWidth={2.2} aria-hidden />
+                        Ô tô (B2, B3)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setVehicle('bike')}
+                        className={vehicle === 'bike' ? 'active' : ''}
+                      >
+                        <Bike size={18} strokeWidth={2.2} aria-hidden />
+                        Xe máy (B1)
+                      </button>
+                    </div>
+                  </div>
+                </section>
+
+                <div className="booking-map-panel">
+                  <ParkingMap floors={customerFloors} />
                 </div>
-              ) : (
-                <div className="booking-split-layout">
-                  {/* Bên trái: Thông tin đặt chỗ + Bảng giá */}
-                  <section className="booking-section-card booking-info-card">
-                    <div className="booking-section-heading">
-                      <span>Thông tin đặt chỗ</span>
-                      <strong>Đặt trước ô tô — chọn giờ vào bãi</strong>
-                    </div>
+              </div>
+            ) : (
+              <div className="booking-split-layout">
+                {/* Bên trái: Thông tin đặt chỗ + Bảng giá */}
+                <section className="booking-section-card booking-info-card">
+                  <div className="booking-section-heading">
+                    <span>Thông tin đặt chỗ</span>
+                    <strong>Đặt trước ô tô — chọn giờ vào bãi</strong>
+                  </div>
 
-                    <div className="booking-vehicle-badge">
-                      <Car size={18} strokeWidth={2.2} aria-hidden />
-                      <span>Loại xe: Ô tô</span>
-                    </div>
+                  <div className="booking-vehicle-badge">
+                    <Car size={18} strokeWidth={2.2} aria-hidden />
+                    <span>Loại xe: Ô tô</span>
+                  </div>
 
-                    <div className="search-grid booking-field-grid booking-field-grid--single">
-                      <label className="hero-field">
-                        <span>Thời gian vào bãi</span>
-                        <div>
-                          <CalendarDays size={18} strokeWidth={2.2} aria-hidden />
-                          <input
-                            type="datetime-local"
-                            value={startTime}
-                            onChange={(event) => setStartTime(event.target.value)}
-                          />
-                        </div>
-                      </label>
-                    </div>
-
-                    {/* Bảng giá chuyển sang bên trái */}
-                    <PriceTable />
-                  </section>
-
-                  {/* Bên phải: Chỉ thông tin thanh toán */}
-                  <aside className="booking-section-card booking-payment-card">
-                    <div className="booking-section-heading">
-                      <span>Thông tin thanh toán</span>
-                      <strong>Xác nhận tiền cọc</strong>
-                    </div>
-
-                    <div className="booking-payment-summary">
-                      <div className="booking-payment-item">
-                        <span>Loại xe</span>
-                        <strong>{vehicleTypeLabel('car')}</strong>
+                  <div className="search-grid booking-field-grid booking-field-grid--single">
+                    <label className="hero-field">
+                      <span>Thời gian vào bãi</span>
+                      <div>
+                        <CalendarDays size={18} strokeWidth={2.2} aria-hidden />
+                        <input
+                          type="datetime-local"
+                          value={startTime}
+                          min={minTimeStr}
+                          max={maxTimeStr}
+                          onChange={(event) => setStartTime(event.target.value)}
+                        />
                       </div>
+                    </label>
+                  </div>
 
-                      <div className="booking-payment-item booking-payment-item--total">
-                        <span>Số tiền thanh toán</span>
-                        <strong>{formatCurrency(getPolicy('car').basePrice)}</strong>
-                      </div>
+                  {/* Bảng giá chuyển sang bên trái */}
+                  <PriceTable />
+                </section>
+
+                {/* Bên phải: Chỉ thông tin thanh toán */}
+                <aside className="booking-section-card booking-payment-card">
+                  <div className="booking-section-heading">
+                    <span>Thông tin thanh toán</span>
+                    <strong>Xác nhận tiền cọc</strong>
+                  </div>
+
+                  <div className="booking-payment-summary">
+                    <div className="booking-payment-item">
+                      <span>Loại xe</span>
+                      <strong>{vehicleTypeLabel('car')}</strong>
                     </div>
 
-                    <CancellationPolicy />
+                    <div className="booking-payment-item booking-payment-item--total">
+                      <span>Số tiền thanh toán</span>
+                      <strong>30.000 đ</strong>
+                    </div>
+                  </div>
 
-                    <button
-                      type="button"
-                      onClick={handlePreRegisterSubmit}
-                      className="hero-search-btn booking-continue-btn"
-                    >
-                      Tiếp tục thanh toán
-                    </button>
-                  </aside>
-                </div>
-              )}
-            
+                  <CancellationPolicy />
+
+                  <button
+                    type="button"
+                    onClick={handlePreRegisterSubmit}
+                    className="hero-search-btn booking-continue-btn"
+                  >
+                    Tiếp tục thanh toán
+                  </button>
+                </aside>
+              </div>
+            )}
+
           </div>
         </div>
       </section>

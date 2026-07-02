@@ -40,7 +40,7 @@ namespace BLL.Implements
             var slot = await FindGuestAvailableSlotAsync(dto.VehicleTypeId);
             if (slot == null) return new ResponseDTO("Không còn chỗ trống cho khách vãng lai", 409, false);
 
-            var now = DateTime.Now;
+            var now = DateTime.UtcNow;
             var session = new ParkingSession
             {
                 SessionId = Guid.NewGuid(),
@@ -255,7 +255,7 @@ namespace BLL.Implements
 
             var licensePlate = NormalizePlate(dto.LicensePlate);
 
-            var now = DateTime.Now;
+            var now = DateTime.UtcNow;
             var subscription = await _unitOfWork.MonthlySubscriptionRepo.GetAll()
                 .Include(s => s.User)
                 .FirstOrDefaultAsync(s =>
@@ -308,7 +308,7 @@ namespace BLL.Implements
             if (sessionResult.Error != null) return sessionResult.Error;
 
             var session = sessionResult.Session!;
-            var now = DateTime.Now;
+            var now = DateTime.UtcNow;
             var subscription = await _unitOfWork.MonthlySubscriptionRepo.GetAll()
                 .FirstOrDefaultAsync(s =>
                     s.LicensePlate.ToLower() == session.LicensePlateIn.ToLower()

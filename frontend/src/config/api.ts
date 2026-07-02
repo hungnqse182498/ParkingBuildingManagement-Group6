@@ -58,6 +58,20 @@ export const API_ENDPOINTS = {
   PRICING_UPDATE: '/pricing-policies/:id',
 }
 
+export class ApiRequestError extends Error {
+  statusCode: number
+  data: unknown
+  response: { status: number; data: unknown }
+
+  constructor(statusCode: number, message: string, data: unknown) {
+    super(message)
+    this.name = 'ApiRequestError'
+    this.statusCode = statusCode
+    this.data = data
+    this.response = { status: statusCode, data }
+  }
+}
+
 // API Client Class
 export class ApiClient {
   private baseUrl: string
@@ -102,27 +116,70 @@ export class ApiClient {
     method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH',
     endpoint: string,
     data?: unknown,
+    _isRetry = false,
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`
+    
+    const headers = this.getHeaders()
+    if (data instanceof FormData) {
+      delete headers['Content-Type']
+    }
+
     const options: RequestInit = {
       method,
-      headers: this.getHeaders(),
+      headers,
     }
 
     if (data && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
-      options.body = JSON.stringify(data)
+      if (data instanceof FormData) {
+        options.body = data
+      } else {
+        options.body = JSON.stringify(data)
+      }
     }
 
     try {
       const response = await fetch(url, options)
 
-      if (!response.ok) {
-        if (response.status === 401) {
-          this.clearToken()
-          window.location.href = '/dang-nhap'
+      // ── 401 Unauthorized → attempt token refresh BEFORE other error handling ──
+      if (response.status === 401 && !_isRetry) {
+        try {
+          const { authService } = await import('../utils/authService')
+          const refreshResult = await authService.refreshToken()
+
+          if (refreshResult.isSuccess && refreshResult.result?.accessToken) {
+            this.setToken(refreshResult.result.accessToken)
+            // Retry the original request once with the new token
+            return this.request<T>(method, endpoint, data, true)
+          }
+        } catch (e) {
+          console.error('Token refresh failed:', e)
         }
+
+        // Refresh failed or returned no token → clear session and redirect
+        this.clearToken()
+        window.location.href = '/dang-nhap'
+        throw new Error('Session expired. Redirecting to login.')
+      }
+
+      // ── Handle all other non-OK responses ──
+      if (!response.ok) {
+        const contentType = response.headers.get('content-type')
+        if (response.status === 422 && contentType?.includes('application/json')) {
+          return (await response.json()) as T
+        }
+
+        if (contentType?.includes('application/json')) {
+          const errorBody = await response.json()
+          const message =
+            typeof errorBody?.message === 'string'
+              ? errorBody.message
+              : `HTTP ${response.status}`
+          throw new ApiRequestError(response.status, message, errorBody)
+        }
+
         const error = await response.text()
-        throw new Error(`HTTP ${response.status}: ${error}`)
+        throw new ApiRequestError(response.status, error || `HTTP ${response.status}`, error)
       }
 
       const contentType = response.headers.get('content-type')

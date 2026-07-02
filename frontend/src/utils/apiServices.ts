@@ -53,14 +53,36 @@ export interface ReservationDto {
 
 export interface MonthlySubscriptionDto {
   subscriptionId: string
-  userId: string
-  vehicleTypeId: string
-  vehicleTypeName?: string
+  fullName?: string
   licensePlate: string
+  vehicleType?: string
+  packageName?: string
   startDate: string
   endDate: string
   price: number
   status: string
+  fixedSlot?: string
+}
+
+export interface SubscriptionPackageDto {
+  packageId: string
+  packageName: string
+  vehicleTypeId: string
+  vehicleTypeName?: string
+  durationMonths: number
+  price: number
+  requireFixedSlot: boolean
+  description?: string
+  status: string
+}
+
+export interface RegisterMonthlySubscriptionPaymentDto {
+  subscriptionId: string
+  paymentId: string
+  orderCode: string
+  amount: number
+  paymentLinkId: string
+  paymentUrl: string
 }
 
 export interface ParkingFeePreview {
@@ -133,17 +155,20 @@ export const reservationApi = {
 }
 
 export const subscriptionApi = {
-  subscribe: (data: {
-    vehicleTypeName: string
-    licensePlate: string
-    months: number
-    price: number
-    preferredSlotId?: string
-    preferredFloorName?: string
-    preferredSlotLabel?: string
-  }) => apiClient.post<ApiResponse<MonthlySubscriptionDto>>('/MonthlySubscription/subscribe', data),
+  getPackages: () => apiClient.get<ApiResponse<SubscriptionPackageDto[]>>('/SubscriptionPackage'),
+
+  register: (data: { packageId: string; licensePlate: string; startDateUtc: string }) =>
+    apiClient.post<ApiResponse<RegisterMonthlySubscriptionPaymentDto>>('/MonthlySubscription/register', data),
+
+  createPayment: (subscriptionId: string) =>
+    apiClient.post<ApiResponse<RegisterMonthlySubscriptionPaymentDto>>(
+      `/MonthlySubscription/payment/${subscriptionId}`,
+    ),
 
   getMy: () => apiClient.get<ApiResponse<MonthlySubscriptionDto[]>>('/MonthlySubscription/my'),
+
+  cancel: (subscriptionId: string) =>
+    apiClient.put<ApiResponse>(`/MonthlySubscription/${subscriptionId}/cancel`),
 }
 
 export const vehicleTypeApi = {
@@ -151,11 +176,21 @@ export const vehicleTypeApi = {
 }
 
 export const parkingOperationApi = {
+  uploadAndRecognizePlate: (file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return apiClient.post<{ imageUrl: string; licensePlate?: string; message?: string }>(
+      '/ParkingOperation/upload-and-recognize-plate',
+      formData
+    )
+  },
+
   guestCheckIn: (data: {
     licensePlate: string
     vehicleTypeId: string
     gateName: string
     cardCode?: string
+    entryImageUrl?: string
   }) => apiClient.post<ApiResponse>('/ParkingOperation/guest/check-in', data),
 
   guestCheckOutPreview: (data: { licensePlate?: string; cardCode?: string }) =>
@@ -166,6 +201,8 @@ export const parkingOperationApi = {
     cardCode?: string
     gateName: string
     paymentMethod: string
+    licensePlateOut?: string
+    exitImageUrl?: string
   }) => apiClient.post<ApiResponse>('/ParkingOperation/guest/check-out', data),
 
   residentCheckIn: (data: {
@@ -173,12 +210,15 @@ export const parkingOperationApi = {
     vehicleTypeId: string
     gateName: string
     cardCode?: string
+    entryImageUrl?: string
   }) => apiClient.post<ApiResponse>('/ParkingOperation/resident/check-in', data),
 
   residentCheckOut: (data: {
     licensePlate?: string
     cardCode?: string
     gateName: string
+    licensePlateOut?: string
+    exitImageUrl?: string
   }) => apiClient.post<ApiResponse>('/ParkingOperation/resident/check-out', data),
 
   getAvailability: (vehicleTypeId?: string, floorKeyword?: string) => {
