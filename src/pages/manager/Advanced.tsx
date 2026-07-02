@@ -3,6 +3,7 @@ import { Plus } from 'lucide-react'
 import ManagerPageShell from '../../components/ManagerPageShell'
 import { apiClient } from '../../config/api'
 import { useAuth } from '../../context/AuthContext'
+import { formatUtcToVietnamDateTime } from '../../utils/dateTime'
 
 interface IncidentReport {
   incidentId: string
@@ -46,8 +47,7 @@ const typeLabels: Record<string, string> = {
 function formatTime(iso?: string) {
   if (!iso) return '—'
   try {
-    const d = new Date(iso)
-    return d.toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' })
+    return formatUtcToVietnamDateTime(iso)
   } catch {
     return iso
   }
