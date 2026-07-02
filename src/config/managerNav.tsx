@@ -4,8 +4,11 @@ import {
   Building2,
   Car,
   DollarSign,
+  DoorOpen,
   Layers,
+  Package,
   ParkingSquare,
+  RefreshCw,
 } from 'lucide-react'
 import type { ReactNode } from 'react'
 
@@ -38,6 +41,27 @@ export const MANAGER_NAV: NavItem[] = [
     path: '/manager/floor-assignment',
     icon: <Layers size={18} />,
     desc: 'Gán tầng/khu cho từng loại xe',
+  },
+  {
+    id: 'gates',
+    label: 'Cổng ra vào',
+    path: '/manager/gates',
+    icon: <DoorOpen size={18} />,
+    desc: 'Quản lý cổng ra vào bãi xe',
+  },
+  {
+    id: 'subscriptions',
+    label: 'Gói thuê bao',
+    path: '/manager/subscriptions',
+    icon: <Package size={18} />,
+    desc: 'Quản lý gói đăng ký tháng',
+  },
+  {
+    id: 'renewals',
+    label: 'Gia hạn thuê bao',
+    path: '/manager/renewals',
+    icon: <RefreshCw size={18} />,
+    desc: 'Duyệt yêu cầu gia hạn gói thuê bao',
   },
   {
     id: 'slots',
