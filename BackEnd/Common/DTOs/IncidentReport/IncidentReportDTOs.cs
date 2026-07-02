@@ -16,6 +16,9 @@ namespace Common.DTOs.IncidentReport
         public string? HandledByStaffFullName { get; set; }
         public DateTime? ResolvedAt { get; set; }
         public string? ResolutionNotes { get; set; }
+        public string? LicensePlate { get; set; }
+        public string? IncidentType { get; set; }
+        public DateTime? ReportedAt { get; set; }
     }
 
     public class CreateIncidentReportDTO
@@ -27,6 +30,8 @@ namespace Common.DTOs.IncidentReport
         public string? ProofImageUrl { get; set; }
         public string? Status { get; set; }
         public Guid? HandledByStaffId { get; set; }
+        public string? IncidentType { get; set; }
+        public string? LicensePlate { get; set; }
     }
 
     public class UpdateIncidentReportDTO
@@ -41,6 +46,8 @@ namespace Common.DTOs.IncidentReport
         public Guid? HandledByStaffId { get; set; }
         public DateTime? ResolvedAt { get; set; }
         public string? ResolutionNotes { get; set; }
+        public string? IncidentType { get; set; }
+        public string? LicensePlate { get; set; }
     }
 
     public class ResolveIncidentDTO

@@ -79,6 +79,23 @@ namespace BLL.Implements
             if (dto == null)
                 return new ResponseDTO("Dữ liệu gửi lên không hợp lệ", 400, false);
 
+            if (!string.IsNullOrWhiteSpace(dto.IncidentType) && string.IsNullOrWhiteSpace(dto.IssueType))
+            {
+                dto.IssueType = dto.IncidentType;
+            }
+
+            if (!string.IsNullOrWhiteSpace(dto.LicensePlate) && (!dto.SessionId.HasValue || dto.SessionId == Guid.Empty))
+            {
+                var session = await _unitOfWork.ParkingSessionRepo.GetAll()
+                    .Where(s => s.LicensePlateIn.ToLower() == dto.LicensePlate.Trim().ToLower() || (s.LicensePlateOut != null && s.LicensePlateOut.ToLower() == dto.LicensePlate.Trim().ToLower()))
+                    .OrderByDescending(s => s.EntryTime)
+                    .FirstOrDefaultAsync();
+                if (session != null)
+                {
+                    dto.SessionId = session.SessionId;
+                }
+            }
+
             var initialStatusStr = dto.Status ?? nameof(IncidentStatus.Open);
 
             var validation = await ValidateIncidentAsync(dto.SessionId, dto.ReportedByUserId, dto.IssueType, dto.Description, initialStatusStr, dto.HandledByStaffId);
@@ -118,6 +135,23 @@ namespace BLL.Implements
         {
             if (dto == null || dto.IncidentId == Guid.Empty)
                 return new ResponseDTO("Dữ liệu cập nhật không hợp lệ", 400, false);
+
+            if (!string.IsNullOrWhiteSpace(dto.IncidentType) && string.IsNullOrWhiteSpace(dto.IssueType))
+            {
+                dto.IssueType = dto.IncidentType;
+            }
+
+            if (!string.IsNullOrWhiteSpace(dto.LicensePlate) && (!dto.SessionId.HasValue || dto.SessionId == Guid.Empty))
+            {
+                var session = await _unitOfWork.ParkingSessionRepo.GetAll()
+                    .Where(s => s.LicensePlateIn.ToLower() == dto.LicensePlate.Trim().ToLower() || (s.LicensePlateOut != null && s.LicensePlateOut.ToLower() == dto.LicensePlate.Trim().ToLower()))
+                    .OrderByDescending(s => s.EntryTime)
+                    .FirstOrDefaultAsync();
+                if (session != null)
+                {
+                    dto.SessionId = session.SessionId;
+                }
+            }
 
             var incident = await _unitOfWork.IncidentReportRepo.GetByIdWithDetailsAsync(dto.IncidentId);
             if (incident == null)
@@ -300,7 +334,10 @@ namespace BLL.Implements
                 HandledByStaffId = incident.HandledByStaffId,
                 HandledByStaffFullName = incident.HandledByStaff?.FullName,
                 ResolvedAt = incident.ResolvedAt,
-                ResolutionNotes = incident.ResolutionNotes
+                ResolutionNotes = incident.ResolutionNotes,
+                IncidentType = incident.IssueType,
+                LicensePlate = incident.Session?.LicensePlateIn ?? incident.Session?.LicensePlateOut,
+                ReportedAt = incident.Session?.EntryTime
             };
         }
     }
