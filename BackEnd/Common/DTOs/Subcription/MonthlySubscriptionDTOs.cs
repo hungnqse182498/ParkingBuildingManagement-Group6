@@ -21,6 +21,7 @@ namespace Common.DTOs.Subscription
     {
         public Guid PackageId { get; set; }
         public string LicensePlate { get; set; } = string.Empty;
+        public DateTime? StartDateUtc { get; set; }
     }
 
     public class RegisterMonthlySubscriptionPaymentDTO

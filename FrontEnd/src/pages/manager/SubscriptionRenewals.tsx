@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import ManagerPageShell from '../../components/ManagerPageShell'
 import { apiClient } from '../../config/api'
+import { formatUtcToVietnamDateTime } from '../../utils/dateTime'
 
 interface RenewalRequest {
   renewalId: string
@@ -186,15 +187,7 @@ export default function ManagerSubscriptionRenewals() {
 
   const formatDateTime = (value?: string) => {
     if (!value) return '—'
-    const date = new Date(value)
-    if (Number.isNaN(date.getTime())) return value
-    return new Intl.DateTimeFormat('vi-VN', {
-      hour: '2-digit',
-      minute: '2-digit',
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    }).format(date)
+    return formatUtcToVietnamDateTime(value)
   }
 
   const formatCurrency = (amount?: number) => {

@@ -5,6 +5,7 @@ using Common.Enums;
 using DAL.Models;
 using DAL.UnitOfWorks;
 using Microsoft.EntityFrameworkCore;
+using System.Globalization;
 
 namespace BLL.Implements;
 
@@ -38,11 +39,22 @@ public class PaymentService : IPaymentService
         if (payment.PaymentStatus == PaymentStatus.Success.ToString())
             return;
 
-        payment.PaymentStatus = dto.Code == "00"
+        var isSuccess = dto.Code == "00";
+        var expectedAmount = (int)Math.Round(payment.Amount, MidpointRounding.AwayFromZero);
+        if (isSuccess && dto.Data.Amount != expectedAmount)
+        {
+            payment.PaymentStatus = PaymentStatus.Failed.ToString();
+            payment.PaymentTime = ResolveWebhookPaymentTimeUtc(dto.Data.TransactionDateTime);
+            await _unitOfWork.PaymentRepo.UpdateAsync(payment);
+            await _unitOfWork.SaveAsync();
+            return;
+        }
+
+        payment.PaymentStatus = isSuccess
             ? PaymentStatus.Success.ToString()
             : PaymentStatus.Failed.ToString();
 
-        payment.PaymentTime = DateTime.UtcNow;
+        payment.PaymentTime = ResolveWebhookPaymentTimeUtc(dto.Data.TransactionDateTime);
 
         await _unitOfWork.PaymentRepo.UpdateAsync(payment);
         await DispatchPaymentAsync(payment);
@@ -62,7 +74,7 @@ public class PaymentService : IPaymentService
                 break;
 
             case var t when t == PaymentType.SubscriptionFee.ToString():
-                await ActivateSubscriptionAsync(payment.SubscriptionId!.Value);
+                await ActivateSubscriptionAsync(payment);
                 break;
 
             case var t when t == PaymentType.SubscriptionRenewal.ToString():
@@ -85,13 +97,18 @@ public class PaymentService : IPaymentService
     }
 
     //4
-    private async Task ActivateSubscriptionAsync(Guid subscriptionId)
+    private async Task ActivateSubscriptionAsync(Payment payment)
     {
         var subscription = await _unitOfWork.MonthlySubscriptionRepo.GetAll()
             .Include(s => s.Package)
-            .FirstOrDefaultAsync(s => s.SubscriptionId == subscriptionId);
+            .FirstOrDefaultAsync(s => s.SubscriptionId == payment.SubscriptionId!.Value);
         if (subscription == null) return;
 
+        var paidAtUtc = NormalizeUtc(payment.PaymentTime);
+        var durationMonths = Math.Max(1, subscription.Package?.DurationMonths ?? 1);
+
+        subscription.StartDate = paidAtUtc;
+        subscription.EndDate = paidAtUtc.AddMonths(durationMonths);
         subscription.Status = "Active";
 
         if (subscription.Package.RequireFixedSlot == true && !subscription.FixedSlotId.HasValue)
@@ -121,7 +138,9 @@ public class PaymentService : IPaymentService
 
         var months = Math.Max(1, (int)Math.Round(payment.Amount / subscription.Price, MidpointRounding.AwayFromZero));
         var oldEnd = subscription.EndDate;
-        var start = subscription.EndDate < DateTime.Now ? DateTime.Now : subscription.EndDate;
+        var nowUtc = DateTime.UtcNow;
+        var currentEndUtc = NormalizeUtc(subscription.EndDate);
+        var start = currentEndUtc < nowUtc ? nowUtc : currentEndUtc;
         var newEnd = start.AddMonths(months);
 
         subscription.EndDate = newEnd;
@@ -134,7 +153,7 @@ public class PaymentService : IPaymentService
             OldEndDate = oldEnd,
             NewEndDate = newEnd,
             Amount = payment.Amount,
-            RenewalDate = DateTime.Now
+            RenewalDate = nowUtc
         };
 
         await _unitOfWork.SubscriptionRenewalRepo.AddAsync(renewal);
@@ -252,6 +271,31 @@ public class PaymentService : IPaymentService
     {
         if (string.IsNullOrWhiteSpace(status)) return null;
         return ValidStatuses.FirstOrDefault(s => string.Equals(s, status.Trim(), StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static DateTime ResolveWebhookPaymentTimeUtc(string? transactionDateTime)
+    {
+        if (!string.IsNullOrWhiteSpace(transactionDateTime) &&
+            DateTimeOffset.TryParse(
+                transactionDateTime,
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
+                out var parsed))
+        {
+            return parsed.UtcDateTime;
+        }
+
+        return DateTime.UtcNow;
+    }
+
+    private static DateTime NormalizeUtc(DateTime value)
+    {
+        return value.Kind switch
+        {
+            DateTimeKind.Utc => value,
+            DateTimeKind.Local => value.ToUniversalTime(),
+            _ => DateTime.SpecifyKind(value, DateTimeKind.Utc)
+        };
     }
 
     private async Task CompleteCheckoutSessionIfNeededAsync(Payment payment)
