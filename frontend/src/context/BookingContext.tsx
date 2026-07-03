@@ -51,7 +51,6 @@ interface BookingContextValue {
     nightSurcharge: number
     extraHourPrice: number
   }
-  getAllPolicies: () => PricingPolicyRaw[]
 }
 
 const BookingContext = createContext<BookingContextValue | null>(null)
@@ -167,10 +166,6 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
-  const getAllPolicies = useCallback(() => {
-    return policies
-  }, [policies])
-
   const value = useMemo(
     () => ({
       draft,
@@ -182,9 +177,8 @@ export function BookingProvider({ children }: { children: ReactNode }) {
       cancelBooking,
       updateBookingStatus,
       getPolicy,
-      getAllPolicies,
     }),
-    [draft, bookings, getAllBookings, getMyBookings, completePayment, cancelBooking, updateBookingStatus, getPolicy, getAllPolicies],
+    [draft, bookings, getAllBookings, getMyBookings, completePayment, cancelBooking, updateBookingStatus, getPolicy],
   )
 
   return <BookingContext.Provider value={value}>{children}</BookingContext.Provider>
